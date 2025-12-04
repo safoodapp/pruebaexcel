@@ -153,7 +153,7 @@ if st.button("✅ Generar etiqueta"):
     plantilla_path = f"{plantilla_nombre}.docx"
     if not os.path.exists(plantilla_path):
         st.error(f"No se encontró la plantilla: {plantilla_path}")
-    else:
+        else:
         doc = DocxTemplate(plantilla_path)
         doc.render(campos)
 
@@ -161,20 +161,23 @@ if st.button("✅ Generar etiqueta"):
         output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{timestamp}.docx"
         doc.save(output_docx)
 
-with open(output_docx, "rb") as file:
-    b64_docx = base64.b64encode(file.read()).decode()
-    st.markdown(
-        f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
-        unsafe_allow_html=True
-    )
+        # Descargar Word
+        with open(output_docx, "rb") as file:
+            b64_docx = base64.b64encode(file.read()).decode()
+            st.markdown(
+                f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
+                unsafe_allow_html=True
+            )
 
-# Generar PDF automáticamente usando la función nueva
-output_pdf = output_docx.replace(".docx", ".pdf")
-generar_pdf_etiqueta(campos, output_pdf)
+        # Generar PDF automáticamente
+        output_pdf = output_docx.replace(".docx", ".pdf")
+        generar_pdf_etiqueta(campos, output_pdf)
 
-with open(output_pdf, "rb") as f:
-    b64_pdf = base64.b64encode(f.read()).decode()
-    st.markdown(
-        f'<a href="data:application/pdf;base64,{b64_pdf}" download="{output_pdf}">🧾 Descargar etiqueta en PDF</a>',
-        unsafe_allow_html=True
-    )
+        # Descargar PDF
+        with open(output_pdf, "rb") as f:
+            b64_pdf = base64.b64encode(f.read()).decode()
+            st.markdown(
+                f'<a href="data:application/pdf;base64,{b64_pdf}" download="{output_pdf}">🧾 Descargar etiqueta en PDF</a>',
+                unsafe_allow_html=True
+            )
+
