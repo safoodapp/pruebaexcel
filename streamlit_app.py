@@ -89,6 +89,15 @@ if usar_fecha_descongelacion:
 else:
     fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
 
+# Selección de número de copias
+num_copias = st.number_input(
+    "Número de copias en la misma hoja",
+    min_value=1,
+    max_value=30,
+    value=4,
+    step=1
+)
+
 # Botón de generar
 if st.button("✅ Generar etiqueta"):
     campos = {
@@ -148,10 +157,10 @@ if st.button("✅ Generar etiqueta"):
     # -------------------------------
     #   DUPLICAR 4 COPIAS EN LA HOJA
     # -------------------------------
-    for _ in range(4):
-        for elem in plantilla_render.element.body:
-            doc_final.element.body.append(copy.deepcopy(elem))
-        doc_final.add_paragraph("")   # Espacio entre copias
+    for _ in range(int(num_copias)):
+    for elem in plantilla_render.element.body:
+        doc_final.element.body.append(copy.deepcopy(elem))
+    doc_final.add_paragraph("")
 
     # Guardar resultado final
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
