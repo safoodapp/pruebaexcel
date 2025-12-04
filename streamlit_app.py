@@ -151,29 +151,28 @@ if st.button("✅ Generar etiqueta"):
     # Cargar documento ya renderizado como Document normal
     plantilla_render = Document(temp_path)
 
-    # Documento final donde colocaremos las 4 copias
-    doc_final = Document()
+    # Documento final donde colocaremos las copias
+doc_final = Document()
 
-   # Duplicar tantas copias como el usuario pidió
+# Duplicar tantas copias como el usuario pidió
 for _ in range(int(num_copias)):
     for elem in plantilla_render.element.body:
         doc_final.element.body.append(copy.deepcopy(elem))
     doc_final.add_paragraph("")
 
+# Guardar resultado final
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+output_docx = f"ETIQUETASx{num_copias}_{producto.replace(' ', '_')}_{timestamp}.docx"
 
-    # Guardar resultado final
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_docx = f"ETIQUETASx4_{producto.replace(' ', '_')}_{timestamp}.docx"
+buffer = BytesIO()
+doc_final.save(buffer)
+buffer.seek(0)
 
-    buffer = BytesIO()
-    doc_final.save(buffer)
-    buffer.seek(0)
+# Descargar archivo
+b64_docx = base64.b64encode(buffer.read()).decode()
+st.markdown(
+    f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta ({num_copias} copias)</a>',
+    unsafe_allow_html=True
+)
 
-    # Descargar archivo
-    b64_docx = base64.b64encode(buffer.read()).decode()
-    st.markdown(
-        f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta (4 copias en 1 hoja)</a>',
-        unsafe_allow_html=True
-    )
-
-    st.success("Documento generado con 4 copias en la misma hoja 🎉")
+st.success(f"Documento generado con {num_copias} copias 🎉")
