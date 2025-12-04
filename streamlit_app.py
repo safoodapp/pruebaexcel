@@ -128,7 +128,7 @@ import base64
 st.set_page_config(page_title="Etiquetas de prueba", layout="centered")
 
 # Cargar datos desde Google Sheets / CSV
-url = "https://docs.google.com/spreadsheets/d/tu_sheet/export?format=csv&gid=0"
+url = "https://docs.google.com/spreadsheets/d/1M-1zM8pxosv75N5gCtWaPkE1beQBOaMD/export?format=csv&gid=707739207"
 try:
     df = pd.read_csv(url)
 except Exception as e:
