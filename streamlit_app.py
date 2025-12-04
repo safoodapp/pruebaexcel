@@ -118,22 +118,26 @@ else:
     fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
 
 # Botón de generar
+from docx2pdf import convert
+
+# Número de etiquetas a generar
+num_copias = st.selectbox("Número de etiquetas a generar", [1,2,3,4], index=2)
+
 if st.button("✅ Generar etiqueta"):
     campos = {
         "denominacion_comercial": producto,
         "nombre_cientifico": nombre_cientifico,
         "ingredientes": ingredientes,
-        "forma_captura": forma,     # ojo: en plantilla usa {{forma_captura}}
+        "forma_captura": forma,
         "zona_captura": zona,
         "pais_origen": pais,
         "arte_pesca": arte,
-        # "peso" eliminado
         "lote": lote,
         "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
         "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
     }
 
-    # Validación de campos obligatorios (peso eliminado)
+    # Validación de campos obligatorios
     campos_obligatorios = {
         "Producto": producto,
         "Forma de captura": forma,
@@ -142,42 +146,49 @@ if st.button("✅ Generar etiqueta"):
         "Arte de pesca": arte,
         "Lote": lote
     }
-
     faltan = [k for k, v in campos_obligatorios.items() if not v or v == "Selecciona una opción"]
-
     if faltan:
         st.warning(f"Debes completar todos los campos obligatorios: {', '.join(faltan)}")
         st.stop()
 
-
+    # Cargar plantilla Word
     plantilla_path = f"{plantilla_nombre}.docx"
     if not os.path.exists(plantilla_path):
         st.error(f"No se encontró la plantilla: {plantilla_path}")
-        else:
-        doc = DocxTemplate(plantilla_path)
-        doc.render(campos)
+        st.stop()
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{timestamp}.docx"
-        doc.save(output_docx)
+    doc = DocxTemplate(plantilla_path)
 
-        # Descargar Word
-        with open(output_docx, "rb") as file:
-            b64_docx = base64.b64encode(file.read()).decode()
-            st.markdown(
-                f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
-                unsafe_allow_html=True
-            )
+    # Preparar campos para las N copias
+    # Suponemos que la plantilla tiene 4 marcadores independientes:
+    # den_comercial_1, den_comercial_2, ..., forma_captura_1, ...
+    render_data = {}
+    for i in range(1, num_copias+1):
+        for k, v in campos.items():
+            render_data[f"{k}_{i}"] = v
 
-        # Generar PDF automáticamente
-        output_pdf = output_docx.replace(".docx", ".pdf")
-        generar_pdf_etiqueta(campos, output_pdf)
+    doc.render(render_data)
 
-        # Descargar PDF
-        with open(output_pdf, "rb") as f:
-            b64_pdf = base64.b64encode(f.read()).decode()
-            st.markdown(
-                f'<a href="data:application/pdf;base64,{b64_pdf}" download="{output_pdf}">🧾 Descargar etiqueta en PDF</a>',
-                unsafe_allow_html=True
-            )
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{timestamp}.docx"
+    doc.save(output_docx)
 
+    # Descargar Word
+    with open(output_docx, "rb") as file:
+        b64_docx = base64.b64encode(file.read()).decode()
+        st.markdown(
+            f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
+            unsafe_allow_html=True
+        )
+
+    # Convertir a PDF automáticamente usando docx2pdf
+    output_pdf = output_docx.replace(".docx", ".pdf")
+    convert(output_docx, output_pdf)
+
+    # Descargar PDF
+    with open(output_pdf, "rb") as f:
+        b64_pdf = base64.b64encode(f.read()).decode()
+        st.markdown(
+            f'<a href="data:application/pdf;base64,{b64_pdf}" download="{output_pdf}">🧾 Descargar etiqueta en PDF</a>',
+            unsafe_allow_html=True
+        )
