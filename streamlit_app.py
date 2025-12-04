@@ -123,12 +123,15 @@ import pandas as pd
 from datetime import datetime
 from docx import Document
 import base64
+import copy
 
 # Configurar página
-st.set_page_config(page_title="Etiquetas de prueba", layout="centered")
+st.set_page_config(page_title="Etiquetas", layout="centered")
 
-# Cargar datos desde Google Sheets / CSV
+# URL de tu Google Sheet
 url = "https://docs.google.com/spreadsheets/d/1M-1zM8pxosv75N5gCtWaPkE1beQBOaMD/export?format=csv&gid=707739207"
+
+# Cargar datos
 try:
     df = pd.read_csv(url)
 except Exception as e:
@@ -148,49 +151,49 @@ if producto != "Selecciona un producto":
     pais_origen = fila.get("pais_origen", "")
     arte_pesca = fila.get("arte_pesca", "")
     lote = fila.get("lote", "")
-    plantilla_nombre = fila.get("plantilla", "FT_CRUSTACEO.docx")
-    plantilla_path = plantilla_nombre  # plantilla en repositorio
+    plantilla_path = fila.get("plantilla")  # plantilla correcta según CSV
 
     # Número de etiquetas a generar
-    num_copias = st.number_input("Número de etiquetas a generar", min_value=1, max_value=100, value=4, step=1)
+    num_copias = st.number_input("Número de etiquetas a generar", min_value=1, max_value=100, value=1, step=1)
 
-    if st.button("✅ Generar etiquetas Word"):
-        # Crear lista de etiquetas con los datos del producto
-        etiquetas = []
-        for i in range(num_copias):
-            etiquetas.append({
-                "denominacion_comercial": producto,
-                "nombre_cientifico": nombre_cientifico,
-                "ingredientes": ingredientes,
-                "forma_captura": forma_captura,
-                "zona_captura": zona_captura,
-                "pais_origen": pais_origen,
-                "arte_pesca": arte_pesca,
-                "lote": lote,
-                "fecha_descongelacion": "",
-                "fecha_caducidad": ""
-            })
-
-        # Dividir en páginas de 4 etiquetas
-        etiquetas_por_pagina = 4
+    # Botón original
+    if st.button("✅ Generar etiqueta"):
+        # Abrir plantilla
+        plantilla_doc = Document(plantilla_path)
         final_doc = Document()
-        for i in range(0, len(etiquetas), etiquetas_por_pagina):
-            page_etiquetas = etiquetas[i:i+etiquetas_por_pagina]
-            plantilla_doc = Document(plantilla_path)
 
-            # Rellenar los marcadores en cada página
-            for idx, etiqueta in enumerate(page_etiquetas):
-                for p in plantilla_doc.paragraphs:
-                    texto = p.text
-                    for k, v in etiqueta.items():
-                        texto = texto.replace(f"{{{{{k}}}}}", str(v))
-                    final_doc.add_paragraph(texto)
+        etiquetas_generadas = 0
+        while etiquetas_generadas < num_copias:
+            # Copiar tabla base de la plantilla
+            base_table = plantilla_doc.tables[0]
+            table_copy = copy.deepcopy(base_table._tbl)
+            final_doc._body.append(table_copy)
 
-            # Salto de página si hay más etiquetas
-            if i + etiquetas_por_pagina < len(etiquetas):
+            # Rellenar los campos dinámicos
+            for row in final_doc.tables[-1].rows:
+                for cell in row.cells:
+                    for k, v in {
+                        "denominacion_comercial": producto,
+                        "nombre_cientifico": nombre_cientifico,
+                        "ingredientes": ingredientes,
+                        "forma_captura": forma_captura,
+                        "zona_captura": zona_captura,
+                        "pais_origen": pais_origen,
+                        "arte_pesca": arte_pesca,
+                        "lote": lote,
+                        "fecha_descongelacion": "",
+                        "fecha_caducidad": ""
+                    }.items():
+                        if f"{{{{{k}}}}}" in cell.text:
+                            cell.text = cell.text.replace(f"{{{{{k}}}}}", str(v))
+
+            etiquetas_generadas += 1
+
+            # Salto de página cada 4 etiquetas
+            if etiquetas_generadas % 4 == 0 and etiquetas_generadas < num_copias:
                 final_doc.add_page_break()
 
-        # Guardar archivo final
+        # Guardar Word final
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         output_docx = f"ETIQUETAS_{producto.replace(' ', '_')}_{timestamp}.docx"
         final_doc.save(output_docx)
