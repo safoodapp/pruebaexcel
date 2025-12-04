@@ -157,10 +157,11 @@ if st.button("✅ Generar etiqueta"):
     # -------------------------------
     #   DUPLICAR 4 COPIAS EN LA HOJA
     # -------------------------------
-    for _ in range(int(num_copias)):
+   for _ in range(int(num_copias)):
     for elem in plantilla_render.element.body:
         doc_final.element.body.append(copy.deepcopy(elem))
     doc_final.add_paragraph("")
+
 
     # Guardar resultado final
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
