@@ -161,7 +161,7 @@ if st.button("✅ Generar etiqueta"):
         output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{timestamp}.docx"
         doc.save(output_docx)
 
-        with open(output_docx, "rb") as file:
+with open(output_docx, "rb") as file:
     b64_docx = base64.b64encode(file.read()).decode()
     st.markdown(
         f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
