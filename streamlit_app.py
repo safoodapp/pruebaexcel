@@ -5,6 +5,10 @@ from docxtpl import DocxTemplate
 import base64
 import os
 import locale
+from docx import Document
+import copy
+from io import BytesIO
+
 
 # Configurar idioma del calendario (opcional)
 try:
@@ -100,6 +104,7 @@ num_copias = st.number_input(
 
 # Botón de generar
 if st.button("✅ Generar etiqueta"):
+
     campos = {
         "denominacion_comercial": producto,
         "nombre_cientifico": nombre_cientifico,
@@ -109,7 +114,7 @@ if st.button("✅ Generar etiqueta"):
         "pais_origen": pais,
         "arte_pesca": arte,
         "lote": lote,
-        "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
+        "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if usar_fecha_descongelacion else "",
         "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
     }
 
@@ -134,45 +139,41 @@ if st.button("✅ Generar etiqueta"):
         st.error(f"No se encontró la plantilla: {plantilla_path}")
         st.stop()
 
-    # -------------------------------
-    #   RENDERIZAR PLANTILLA 1 VEZ
-    # -------------------------------
-    from docx import Document
-    import copy
-    from io import BytesIO
-
+    # Renderizar plantilla 1 vez
     doc_tpl = DocxTemplate(plantilla_path)
     doc_tpl.render(campos)
 
-    # Guardar temporalmente para obtener el contenido ya renderizado
+    # Guardar temporalmente la plantilla ya rellenada
     temp_path = "temp_rendered.docx"
     doc_tpl.save(temp_path)
 
-    # Cargar documento ya renderizado como Document normal
+    # Cargar plantilla renderizada como Document
     plantilla_render = Document(temp_path)
 
     # Documento final donde colocaremos las copias
-doc_final = Document()
+    doc_final = Document()
 
-# Duplicar tantas copias como el usuario pidió
-for _ in range(int(num_copias)):
-    for elem in plantilla_render.element.body:
-        doc_final.element.body.append(copy.deepcopy(elem))
-    doc_final.add_paragraph("")
+    # -------------------------
+    # DUPLICAR COPIAS
+    # -------------------------
+    for _ in range(int(num_copias)):
+        for elem in plantilla_render.element.body:
+            doc_final.element.body.append(copy.deepcopy(elem))
+        doc_final.add_paragraph("")  # separación
 
-# Guardar resultado final
-timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-output_docx = f"ETIQUETASx{num_copias}_{producto.replace(' ', '_')}_{timestamp}.docx"
+    # Guardar resultado final
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_docx = f"ETIQUETASx{num_copias}_{producto.replace(' ', '_')}_{timestamp}.docx"
 
-buffer = BytesIO()
-doc_final.save(buffer)
-buffer.seek(0)
+    buffer = BytesIO()
+    doc_final.save(buffer)
+    buffer.seek(0)
 
-# Descargar archivo
-b64_docx = base64.b64encode(buffer.read()).decode()
-st.markdown(
-    f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta ({num_copias} copias)</a>',
-    unsafe_allow_html=True
-)
+    # Descargar archivo
+    b64_docx = base64.b64encode(buffer.read()).decode()
+    st.markdown(
+        f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta ({num_copias} copias en 1 hoja)</a>',
+        unsafe_allow_html=True
+    )
 
-st.success(f"Documento generado con {num_copias} copias 🎉")
+    st.success(f"Documento generado con {num_copias} copias en la misma hoja 🎉")
