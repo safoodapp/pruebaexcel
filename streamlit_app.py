@@ -162,11 +162,19 @@ if st.button("✅ Generar etiqueta"):
         doc.save(output_docx)
 
         with open(output_docx, "rb") as file:
-            b64_docx = base64.b64encode(file.read()).decode()
-            st.markdown(
-                f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
-                unsafe_allow_html=True
-            )
+    b64_docx = base64.b64encode(file.read()).decode()
+    st.markdown(
+        f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
+        unsafe_allow_html=True
+    )
 
-        st.info("Si necesitas el archivo en PDF, abre el Word descargado y guárdalo como PDF desde Word o Google Docs.")
+# Generar PDF automáticamente usando la función nueva
+output_pdf = output_docx.replace(".docx", ".pdf")
+generar_pdf_etiqueta(campos, output_pdf)
 
+with open(output_pdf, "rb") as f:
+    b64_pdf = base64.b64encode(f.read()).decode()
+    st.markdown(
+        f'<a href="data:application/pdf;base64,{b64_pdf}" download="{output_pdf}">🧾 Descargar etiqueta en PDF</a>',
+        unsafe_allow_html=True
+    )
