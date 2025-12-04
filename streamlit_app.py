@@ -6,6 +6,34 @@ import base64
 import os
 import locale
 
+ffrom reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+
+def generar_pdf_etiqueta(campos, nombre_archivo):
+    c = canvas.Canvas(nombre_archivo, pagesize=A4)
+    text = c.beginText(40, 800)
+    text.setFont("Helvetica", 12)
+
+    lineas = [
+        f"Denominación comercial: {campos.get('denominacion_comercial', '')}",
+        f"Nombre científico: {campos.get('nombre_cientifico', '')}",
+        f"Ingredientes: {campos.get('ingredientes', '')}",
+        f"Forma de captura: {campos.get('forma_captura', '')}",
+        f"Zona de captura: {campos.get('zona_captura', '')}",
+        f"País de origen: {campos.get('pais_origen', '')}",
+        f"Arte de pesca: {campos.get('arte_pesca', '')}",
+        f"Lote: {campos.get('lote', '')}",
+        f"Fecha descongelación: {campos.get('fecha_descongelacion', '')}",
+        f"Fecha caducidad: {campos.get('fecha_caducidad', '')}",
+    ]
+
+    for linea in lineas:
+        text.textLine(linea)
+
+    c.drawText(text)
+    c.showPage()
+    c.save()
+
 # Configurar idioma del calendario (opcional)
 try:
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
