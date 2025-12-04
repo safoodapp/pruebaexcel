@@ -6,34 +6,6 @@ import base64
 import os
 import locale
 
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
-
-def generar_pdf_etiqueta(campos, nombre_archivo):
-    c = canvas.Canvas(nombre_archivo, pagesize=A4)
-    text = c.beginText(40, 800)
-    text.setFont("Helvetica", 12)
-
-    lineas = [
-        f"Denominación comercial: {campos.get('denominacion_comercial', '')}",
-        f"Nombre científico: {campos.get('nombre_cientifico', '')}",
-        f"Ingredientes: {campos.get('ingredientes', '')}",
-        f"Forma de captura: {campos.get('forma_captura', '')}",
-        f"Zona de captura: {campos.get('zona_captura', '')}",
-        f"País de origen: {campos.get('pais_origen', '')}",
-        f"Arte de pesca: {campos.get('arte_pesca', '')}",
-        f"Lote: {campos.get('lote', '')}",
-        f"Fecha descongelación: {campos.get('fecha_descongelacion', '')}",
-        f"Fecha caducidad: {campos.get('fecha_caducidad', '')}",
-    ]
-
-    for linea in lineas:
-        text.textLine(linea)
-
-    c.drawText(text)
-    c.showPage()
-    c.save()
-
 # Configurar idioma del calendario (opcional)
 try:
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
@@ -118,106 +90,82 @@ else:
     fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
 
 # Botón de generar
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-from docx import Document
-import base64
-import copy
+if st.button("✅ Generar etiqueta"):
+    campos = {
+        "denominacion_comercial": producto,
+        "nombre_cientifico": nombre_cientifico,
+        "ingredientes": ingredientes,
+        "forma_captura": forma,
+        "zona_captura": zona,
+        "pais_origen": pais,
+        "arte_pesca": arte,
+        "lote": lote,
+        "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
+        "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
+    }
 
-# Configurar página
-st.set_page_config(page_title="Etiquetas", layout="centered")
+    # Validación
+    campos_obligatorios = {
+        "Producto": producto,
+        "Forma de captura": forma,
+        "Zona de captura": zona,
+        "País de origen": pais,
+        "Arte de pesca": arte,
+        "Lote": lote
+    }
 
-# Cargar datos desde Google Sheets
-url = "https://docs.google.com/spreadsheets/d/1M-1zM8pxosv75N5gCtWaPkE1beQBOaMD/export?format=csv&gid=707739207"
-try:
-    df = pd.read_csv(url)
-except Exception as e:
-    st.error(f"Error al cargar datos desde Google Sheets: {e}")
-    st.stop()
+    faltan = [k for k, v in campos_obligatorios.items() if not v or v == "Selecciona una opción"]
 
-# --- Formulario ---
-st.header("Crear nueva etiqueta")
+    if faltan:
+        st.warning(f"Debes completar todos los campos obligatorios: {', '.join(faltan)}")
+        st.stop()
 
-# Solo un selectbox de producto
-productos = sorted(df["denominacion_comercial"].dropna().unique())
-producto = st.selectbox("Producto", ["Selecciona un producto"] + list(productos))
+    plantilla_path = f"{plantilla_nombre}.docx"
+    if not os.path.exists(plantilla_path):
+        st.error(f"No se encontró la plantilla: {plantilla_path}")
+        st.stop()
 
-if producto != "Selecciona un producto":
-    fila = df[df["denominacion_comercial"] == producto].iloc[0]
-    plantilla_path = fila.get("plantilla")  # plantilla correspondiente en repositorio
+    # -------------------------------
+    #   RENDERIZAR PLANTILLA 1 VEZ
+    # -------------------------------
+    from docx import Document
+    import copy
+    from io import BytesIO
 
-    # Rellenar automáticamente los campos del producto
-    nombre_cientifico = fila.get("nombre_cientifico", "")
-    ingredientes = fila.get("ingredientes", "")
-    forma_captura = fila.get("forma_captura", "")
-    zona_captura = fila.get("zona_captura", "")
-    pais_origen = fila.get("pais_origen", "")
-    arte_pesca = fila.get("arte_pesca", "")
-    lote = fila.get("lote", "")
+    doc_tpl = DocxTemplate(plantilla_path)
+    doc_tpl.render(campos)
 
-    st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
-    st.text_area("Ingredientes", value=ingredientes, disabled=True)
-    st.radio("Forma de capturado", options=["Selecciona una opción", "Capturado en agua dulce", "De cría (acuicultura)", "Capturado"], index=0, horizontal=True)
-    st.selectbox("Zona de captura", options=["Selecciona una opción", "Zona 1", "Zona 2"])  # Ajusta según tus datos
-    st.selectbox("País de origen", options=["Selecciona una opción", "España", "Portugal"])  # Ajusta según tus datos
-    st.selectbox("Arte de pesca", options=["Selecciona una opción", "Red", "Anzuelo"])  # Ajusta según tus datos
-    st.text_input("Lote", value=lote, disabled=True)
+    # Guardar temporalmente para obtener el contenido ya renderizado
+    temp_path = "temp_rendered.docx"
+    doc_tpl.save(temp_path)
 
-    # Fecha de caducidad (manual)
-    st.date_input("Fecha de caducidad (manual)", value=datetime.now())
+    # Cargar documento ya renderizado como Document normal
+    plantilla_render = Document(temp_path)
 
-    # Número de etiquetas a generar
-    num_copias = st.number_input("Número de etiquetas a generar", min_value=1, max_value=100, value=1, step=1)
+    # Documento final donde colocaremos las 4 copias
+    doc_final = Document()
 
-    # --- Botón para generar ---
-    if st.button("✅ Generar etiqueta"):
-        # Abrir plantilla
-        plantilla_doc = Document(plantilla_path)
-        final_doc = Document()
+    # -------------------------------
+    #   DUPLICAR 4 COPIAS EN LA HOJA
+    # -------------------------------
+    for _ in range(4):
+        for elem in plantilla_render.element.body:
+            doc_final.element.body.append(copy.deepcopy(elem))
+        doc_final.add_paragraph("")   # Espacio entre copias
 
-        datos = {
-            "denominacion_comercial": producto,
-            "nombre_cientifico": nombre_cientifico,
-            "ingredientes": ingredientes,
-            "forma_captura": forma_captura,
-            "zona_captura": zona_captura,
-            "pais_origen": pais_origen,
-            "arte_pesca": arte_pesca,
-            "lote": lote,
-            "fecha_descongelacion": "",
-            "fecha_caducidad": ""
-        }
+    # Guardar resultado final
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_docx = f"ETIQUETASx4_{producto.replace(' ', '_')}_{timestamp}.docx"
 
-        etiquetas_generadas = 0
-        while etiquetas_generadas < num_copias:
-            # Copiar la tabla de la plantilla
-            base_table = plantilla_doc.tables[0]
-            table_copy = copy.deepcopy(base_table._tbl)
-            final_doc._body.append(table_copy)
+    buffer = BytesIO()
+    doc_final.save(buffer)
+    buffer.seek(0)
 
-            # Reemplazar los marcadores en la tabla recién copiada
-            for row in final_doc.tables[-1].rows:
-                for cell in row.cells:
-                    for k, v in datos.items():
-                        if f"{{{{{k}}}}}" in cell.text:
-                            cell.text = cell.text.replace(f"{{{{{k}}}}}", str(v))
+    # Descargar archivo
+    b64_docx = base64.b64encode(buffer.read()).decode()
+    st.markdown(
+        f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta (4 copias en 1 hoja)</a>',
+        unsafe_allow_html=True
+    )
 
-            etiquetas_generadas += 1
-
-            # Salto de página cada 4 etiquetas
-            if (etiquetas_generadas % 4 == 0) and (etiquetas_generadas < num_copias):
-                final_doc.add_page_break()
-
-        # Guardar Word final
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_docx = f"ETIQUETAS_{producto.replace(' ', '_')}_{timestamp}.docx"
-        final_doc.save(output_docx)
-
-        # Botón de descarga
-        with open(output_docx, "rb") as f:
-            b64_docx = base64.b64encode(f.read()).decode()
-            st.markdown(
-                f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiquetas Word</a>',
-                unsafe_allow_html=True
-            )
+    st.success("Documento generado con 4 copias en la misma hoja 🎉")
