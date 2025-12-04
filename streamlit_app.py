@@ -3,7 +3,7 @@ import pandas as pd
 
 st.title("Prueba de lectura desde Google Drive (Google Sheets)")
 
-url = "https://docs.google.com/spreadsheets/d/1zbihxqDHWXHm1CKVuFH6pm8ADKyhaL5lTOLgfz8YUj0/export?format=csv&gid=0"
+url = "https://docs.google.com/spreadsheets/d/1zbihxqDHWXHm1CKVuFH6pm8ADKyhaL5lTOLgfz8YUJ0/export?format=csv&gid=0"
 
 try:
     df = pd.read_csv(url)
