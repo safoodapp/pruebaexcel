@@ -120,97 +120,85 @@ else:
 # Botón de generar
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
-from docxtpl import DocxTemplate
+from datetime import datetime
+from docx import Document
 import base64
-import os
 
 # Configurar página
 st.set_page_config(page_title="Etiquetas de prueba", layout="centered")
 
-# Subir plantilla Word
-st.header("Selecciona tu plantilla")
-plantilla_file = st.file_uploader("Sube tu plantilla Word (.docx)", type=["docx"])
+# Cargar datos desde Google Sheets / CSV
+url = "https://docs.google.com/spreadsheets/d/tu_sheet/export?format=csv&gid=0"
+try:
+    df = pd.read_csv(url)
+except Exception as e:
+    st.error(f"Error al cargar datos desde Google Sheets: {e}")
+    st.stop()
 
-if plantilla_file is not None:
-    plantilla_path = "plantilla_temp.docx"
-    with open(plantilla_path, "wb") as f:
-        f.write(plantilla_file.read())
+# Selección de producto
+productos = sorted(df["denominacion_comercial"].dropna().unique())
+producto = st.selectbox("Producto", ["Selecciona un producto"] + list(productos))
 
-    # Cargar datos de prueba desde CSV de Google Sheets
-    url = "https://docs.google.com/spreadsheets/d/tu_sheet/export?format=csv&gid=0"
-    try:
-        df = pd.read_csv(url)
-    except Exception as e:
-        st.error(f"Error al cargar datos desde Google Sheets: {e}")
-        st.stop()
+if producto != "Selecciona un producto":
+    fila = df[df["denominacion_comercial"] == producto].iloc[0]
+    nombre_cientifico = fila.get("nombre_cientifico", "")
+    ingredientes = fila.get("ingredientes", "")
+    forma_captura = fila.get("forma_captura", "")
+    zona_captura = fila.get("zona_captura", "")
+    pais_origen = fila.get("pais_origen", "")
+    arte_pesca = fila.get("arte_pesca", "")
+    lote = fila.get("lote", "")
+    plantilla_nombre = fila.get("plantilla", "FT_CRUSTACEO.docx")
+    plantilla_path = plantilla_nombre  # plantilla en repositorio
 
-    # Selección de producto
-    productos = sorted(df["denominacion_comercial"].dropna().unique())
-    producto = st.selectbox("Producto", ["Selecciona un producto"] + list(productos))
+    # Número de etiquetas a generar
+    num_copias = st.number_input("Número de etiquetas a generar", min_value=1, max_value=100, value=4, step=1)
 
-    if producto != "Selecciona un producto":
-        fila = df[df["denominacion_comercial"] == producto].iloc[0]
-        nombre_cientifico = fila.get("nombre_cientifico", "")
-        ingredientes = fila.get("ingredientes", "")
-        forma_captura = fila.get("forma_captura", "")
-        zona_captura = fila.get("zona_captura", "")
-        pais_origen = fila.get("pais_origen", "")
-        arte_pesca = fila.get("arte_pesca", "")
-        lote = fila.get("lote", "")
+    if st.button("✅ Generar etiquetas Word"):
+        # Crear lista de etiquetas con los datos del producto
+        etiquetas = []
+        for i in range(num_copias):
+            etiquetas.append({
+                "denominacion_comercial": producto,
+                "nombre_cientifico": nombre_cientifico,
+                "ingredientes": ingredientes,
+                "forma_captura": forma_captura,
+                "zona_captura": zona_captura,
+                "pais_origen": pais_origen,
+                "arte_pesca": arte_pesca,
+                "lote": lote,
+                "fecha_descongelacion": "",
+                "fecha_caducidad": ""
+            })
 
-        # Número de etiquetas a generar
-        num_copias = st.number_input("Número de etiquetas a generar", min_value=1, max_value=100, value=4, step=1)
+        # Dividir en páginas de 4 etiquetas
+        etiquetas_por_pagina = 4
+        final_doc = Document()
+        for i in range(0, len(etiquetas), etiquetas_por_pagina):
+            page_etiquetas = etiquetas[i:i+etiquetas_por_pagina]
+            plantilla_doc = Document(plantilla_path)
 
-        if st.button("✅ Generar etiquetas Word"):
-            # Cargar plantilla
-            doc = DocxTemplate(plantilla_path)
-
-            etiquetas = []
-            for i in range(num_copias):
-                etiquetas.append({
-                    "denominacion_comercial": producto,
-                    "nombre_cientifico": nombre_cientifico,
-                    "ingredientes": ingredientes,
-                    "forma_captura": forma_captura,
-                    "zona_captura": zona_captura,
-                    "pais_origen": pais_origen,
-                    "arte_pesca": arte_pesca,
-                    "lote": lote,
-                    "fecha_descongelacion": "",  # opcional, puedes añadir si la quieres
-                    "fecha_caducidad": ""        # opcional
-                })
-
-            # Crear una lista de contextos, 4 etiquetas por página
-            context_pages = [etiquetas[i:i+4] for i in range(0, len(etiquetas), 4)]
-
-            # Generar documento final
-            final_doc = DocxTemplate(plantilla_path)
-            new_doc_path = f"ETIQUETAS_{producto.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
-
-            # Insertar páginas
-            from docx import Document
-            final_doc_docx = Document(plantilla_path)
-            for page_idx, page_context in enumerate(context_pages):
-                if page_idx > 0:
-                    # Agregar página nueva copiando la plantilla
-                    for element in final_doc_docx.element.body:
-                        final_doc_docx._body.append(element)
-                # Reemplazar los marcadores de cada etiqueta en la página
-                for idx, etiqueta in enumerate(page_context):
+            # Rellenar los marcadores en cada página
+            for idx, etiqueta in enumerate(page_etiquetas):
+                for p in plantilla_doc.paragraphs:
+                    texto = p.text
                     for k, v in etiqueta.items():
-                        # Rellenar los marcadores con índice (1-4)
-                        marcador = f"{{{{{k}}}}}"  # se puede ajustar si quieres indices
-                        for p in final_doc_docx.paragraphs:
-                            if marcador in p.text:
-                                p.text = p.text.replace(marcador, str(v))
+                        texto = texto.replace(f"{{{{{k}}}}}", str(v))
+                    final_doc.add_paragraph(texto)
 
-            final_doc_docx.save(new_doc_path)
+            # Salto de página si hay más etiquetas
+            if i + etiquetas_por_pagina < len(etiquetas):
+                final_doc.add_page_break()
 
-            # Botón de descarga
-            with open(new_doc_path, "rb") as file:
-                b64_docx = base64.b64encode(file.read()).decode()
-                st.markdown(
-                    f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{new_doc_path}">📥 Descargar etiquetas Word</a>',
-                    unsafe_allow_html=True
-                )
+        # Guardar archivo final
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_docx = f"ETIQUETAS_{producto.replace(' ', '_')}_{timestamp}.docx"
+        final_doc.save(output_docx)
+
+        # Botón de descarga
+        with open(output_docx, "rb") as file:
+            b64_docx = base64.b64encode(file.read()).decode()
+            st.markdown(
+                f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiquetas Word</a>',
+                unsafe_allow_html=True
+            )
