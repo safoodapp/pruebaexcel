@@ -89,7 +89,7 @@ if usar_fecha_descongelacion:
 else:
     fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
 
-# Selección de número de copias
+# Selección de número de copias  ← AL MISMO NIVEL QUE EL ELSE
 num_copias = st.number_input(
     "Número de copias en la misma hoja",
     min_value=1,
@@ -154,10 +154,8 @@ if st.button("✅ Generar etiqueta"):
     # Documento final donde colocaremos las 4 copias
     doc_final = Document()
 
-    # -------------------------------
-    #   DUPLICAR 4 COPIAS EN LA HOJA
-    # -------------------------------
-   for _ in range(int(num_copias)):
+   # Duplicar tantas copias como el usuario pidió
+for _ in range(int(num_copias)):
     for elem in plantilla_render.element.body:
         doc_final.element.body.append(copy.deepcopy(elem))
     doc_final.add_paragraph("")
