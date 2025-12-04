@@ -6,7 +6,7 @@ import base64
 import os
 import locale
 
-ffrom reportlab.pdfgen import canvas
+from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 
 def generar_pdf_etiqueta(campos, nombre_archivo):
@@ -169,3 +169,4 @@ if st.button("✅ Generar etiqueta"):
             )
 
         st.info("Si necesitas el archivo en PDF, abre el Word descargado y guárdalo como PDF desde Word o Google Docs.")
+
