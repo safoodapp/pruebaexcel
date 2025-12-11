@@ -51,6 +51,32 @@ zonas = opciones_columna("zona_captura")
 paises = opciones_columna("pais_origen")
 artes = opciones_columna("arte_pesca")
 
+# -------------------------------------------
+# LISTAS NUEVAS: ESTADO Y ELABORACIONES
+# -------------------------------------------
+
+ESTADOS = ["Fresco", "Congelado", "Descongelado"]
+
+ELABORACIONES = [
+    "Entero",
+    "Eviscerado",
+    "Descabezado",
+    "Pelado",
+    "Limpio",
+    "Troceado",
+    "Desmigado",
+    "Picado",
+    "Trozos",
+    "Tacos",
+    "Migas",
+    "Bocados",
+    "Tiras",
+    "Anillas",
+    "Filetes",
+    "Rodajas",
+    "Medallones"
+]
+
 # Formulario
 st.header("🧾 Crear nueva etiqueta")
 
@@ -69,16 +95,68 @@ else:
 st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
 st.text_area("Ingredientes", value=ingredientes, disabled=True)
 
-forma = st.radio("Forma de capturado / producción", formas, horizontal=True)
+# -------------------------------------------
+# RADIO: ESTADO DEL PRODUCTO
+# -------------------------------------------
+
+estado_producto = st.radio(
+    "Estado del producto",
+    ESTADOS,
+    horizontal=True
+)
 
 # -------------------------------------------
-# 🚨 LÓGICA ACUICULTURA vs CAPTURADO
+# RADIO MULTICOLUMNA: ELABORACIÓN
 # -------------------------------------------
-if "acui" in forma.lower():   # Es ACUICULTURA
+
+st.subheader("Forma de preparación")
+
+num_cols = 3
+cols = st.columns(num_cols)
+
+chunk_size = (len(ELABORACIONES) + num_cols - 1) // num_cols
+chunks = [ELABORACIONES[i:i + chunk_size] for i in range(0, len(ELABORACIONES), chunk_size)]
+
+seleccion = None
+
+for idx, (col, opciones) in enumerate(zip(cols, chunks)):
+    with col:
+        elegido = st.radio("", [""] + opciones, key=f"prep_{idx}")
+        if elegido != "":
+            seleccion = elegido
+
+forma_preparacion = seleccion
+
+if not forma_preparacion:
+    st.warning("Debes seleccionar una forma de preparación.")
+    st.stop()
+
+# -------------------------------------------
+# REGLA C: GENERACIÓN DE DENOMINACIÓN FINAL
+# -------------------------------------------
+
+cortes = [
+    "Filetes", "Rodajas", "Medallones", "Anillas",
+    "Tacos", "Trozos", "Migas", "Bocados", "Tiras",
+    "Desmigado", "Picado", "Troceado"
+]
+
+if forma_preparacion in cortes:
+    denominacion_final = f"{forma_preparacion} de {producto}"
+else:
+    denominacion_final = f"{producto} {forma_preparacion.lower()}"
+
+# -------------------------------------------
+# CAPTURADO / ACUICULTURA
+# -------------------------------------------
+
+forma = st.radio("Forma de capturado / producción", formas, horizontal=True)
+
+if "acui" in forma.lower():
     zona = ""
     arte = ""
     st.info("Producto de ACUICULTURA: no se aplica zona FAO ni arte de pesca.")
-else:  # Es CAPTURADO
+else:
     zona = st.selectbox("Zona de captura", zonas)
     arte = st.selectbox("Arte de pesca", artes)
 
@@ -98,14 +176,18 @@ else:
     fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
 
 # -------------------------------------------
-# 🚨 BOTÓN GENERAR
+# BOTÓN GENERAR
 # -------------------------------------------
+
 if st.button("✅ Generar etiqueta"):
 
     campos = {
         "denominacion_comercial": producto,
+        "denominacion_final": denominacion_final,
         "nombre_cientifico": nombre_cientifico,
         "ingredientes": ingredientes,
+        "estado_producto": estado_producto,
+        "forma_preparacion": forma_preparacion,
         "forma_captura": forma,
         "zona_captura": zona,
         "pais_origen": pais,
@@ -115,7 +197,7 @@ if st.button("✅ Generar etiqueta"):
         "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
     }
 
-    # Validación de campos obligatorios
+    # Validación
     campos_obligatorios = {
         "Producto": producto,
         "Forma de captura": forma,
@@ -123,7 +205,6 @@ if st.button("✅ Generar etiqueta"):
         "Lote": lote
     }
 
-    # ✨ Solo exigir zona FAO y arte si NO es acuicultura
     if "acui" not in forma.lower():
         campos_obligatorios["Zona de captura"] = zona
         campos_obligatorios["Arte de pesca"] = arte
@@ -134,7 +215,6 @@ if st.button("✅ Generar etiqueta"):
         st.warning(f"Debes completar todos los campos obligatorios: {', '.join(faltan)}")
         st.stop()
 
-    # Generar documento
     plantilla_path = f"{plantilla_nombre}.docx"
 
     if not os.path.exists(plantilla_path):
@@ -154,4 +234,5 @@ if st.button("✅ Generar etiqueta"):
                 unsafe_allow_html=True
             )
 
-        st.info("Si necesitas PDF, ábrelo en Word o Google Docs y guárdalo como PDF.")
+        st.success("Etiqueta generada correctamente.")
+
