@@ -5,12 +5,8 @@ from docxtpl import DocxTemplate
 import base64
 import os
 import locale
-from docx import Document
-import copy
-from io import BytesIO
 
-
-# Configurar idioma del calendario (opcional)
+# Configurar idioma
 try:
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
 except:
@@ -22,7 +18,7 @@ except:
 # Configurar página
 st.set_page_config(page_title="Etiquetas de Santiago y Santiago", layout="centered")
 
-# Mostrar portada
+# Pantalla inicial
 if "mostrar_formulario" not in st.session_state:
     st.session_state.mostrar_formulario = False
 
@@ -41,8 +37,7 @@ except Exception as e:
     st.error(f"Error al cargar datos desde Google Sheets: {e}")
     st.stop()
 
-
-# Preparar opciones
+# Preparar listas
 def opciones_columna(col):
     try:
         lista = sorted([str(x) for x in df[col].dropna().unique() if isinstance(x, str)])
@@ -74,12 +69,21 @@ else:
 st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
 st.text_area("Ingredientes", value=ingredientes, disabled=True)
 
-forma = st.radio("Forma de capturado", formas, horizontal=True)
-zona = st.selectbox("Zona de captura", zonas)
-pais = st.selectbox("País de origen", paises)
-arte = st.selectbox("Arte de pesca", artes)
+forma = st.radio("Forma de capturado / producción", formas, horizontal=True)
 
-# ⬇️ Eliminado el campo 'peso'
+# -------------------------------------------
+# 🚨 LÓGICA ACUICULTURA vs CAPTURADO
+# -------------------------------------------
+if "acui" in forma.lower():   # Es ACUICULTURA
+    zona = ""
+    arte = ""
+    st.info("Producto de ACUICULTURA: no se aplica zona FAO ni arte de pesca.")
+else:  # Es CAPTURADO
+    zona = st.selectbox("Zona de captura", zonas)
+    arte = st.selectbox("Arte de pesca", artes)
+
+pais = st.selectbox("País de origen", paises)
+
 lote = st.text_input("Lote")
 
 usar_fecha_descongelacion = st.checkbox("¿Indicar fecha de descongelación?")
@@ -93,16 +97,9 @@ if usar_fecha_descongelacion:
 else:
     fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
 
-# Selección de número de copias  ← AL MISMO NIVEL QUE EL ELSE
-num_copias = st.number_input(
-    "Número de copias en la misma hoja",
-    min_value=1,
-    max_value=30,
-    value=4,
-    step=1
-)
-
-# Botón de generar
+# -------------------------------------------
+# 🚨 BOTÓN GENERAR
+# -------------------------------------------
 if st.button("✅ Generar etiqueta"):
 
     campos = {
@@ -114,19 +111,22 @@ if st.button("✅ Generar etiqueta"):
         "pais_origen": pais,
         "arte_pesca": arte,
         "lote": lote,
-        "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if usar_fecha_descongelacion else "",
+        "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
         "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
     }
 
-    # Validación
+    # Validación de campos obligatorios
     campos_obligatorios = {
         "Producto": producto,
         "Forma de captura": forma,
-        "Zona de captura": zona,
         "País de origen": pais,
-        "Arte de pesca": arte,
         "Lote": lote
     }
+
+    # ✨ Solo exigir zona FAO y arte si NO es acuicultura
+    if "acui" not in forma.lower():
+        campos_obligatorios["Zona de captura"] = zona
+        campos_obligatorios["Arte de pesca"] = arte
 
     faltan = [k for k, v in campos_obligatorios.items() if not v or v == "Selecciona una opción"]
 
@@ -134,46 +134,24 @@ if st.button("✅ Generar etiqueta"):
         st.warning(f"Debes completar todos los campos obligatorios: {', '.join(faltan)}")
         st.stop()
 
+    # Generar documento
     plantilla_path = f"{plantilla_nombre}.docx"
+
     if not os.path.exists(plantilla_path):
         st.error(f"No se encontró la plantilla: {plantilla_path}")
-        st.stop()
+    else:
+        doc = DocxTemplate(plantilla_path)
+        doc.render(campos)
 
-    # Renderizar plantilla 1 vez
-    doc_tpl = DocxTemplate(plantilla_path)
-    doc_tpl.render(campos)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{timestamp}.docx"
+        doc.save(output_docx)
 
-    # Guardar temporalmente la plantilla ya rellenada
-    temp_path = "temp_rendered.docx"
-    doc_tpl.save(temp_path)
+        with open(output_docx, "rb") as file:
+            b64_docx = base64.b64encode(file.read()).decode()
+            st.markdown(
+                f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
+                unsafe_allow_html=True
+            )
 
-    # Cargar plantilla renderizada como Document
-    plantilla_render = Document(temp_path)
-
-    # Documento final donde colocaremos las copias
-    doc_final = Document()
-
-    # -------------------------
-    # DUPLICAR COPIAS
-    # -------------------------
-    for _ in range(int(num_copias)):
-        for elem in plantilla_render.element.body:
-            doc_final.element.body.append(copy.deepcopy(elem))
-        doc_final.add_paragraph("")  # separación
-
-    # Guardar resultado final
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    output_docx = f"ETIQUETASx{num_copias}_{producto.replace(' ', '_')}_{timestamp}.docx"
-
-    buffer = BytesIO()
-    doc_final.save(buffer)
-    buffer.seek(0)
-
-    # Descargar archivo
-    b64_docx = base64.b64encode(buffer.read()).decode()
-    st.markdown(
-        f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta ({num_copias} copias en 1 hoja)</a>',
-        unsafe_allow_html=True
-    )
-
-    st.success(f"Documento generado con {num_copias} copias en la misma hoja 🎉")
+        st.info("Si necesitas PDF, ábrelo en Word o Google Docs y guárdalo como PDF.")
