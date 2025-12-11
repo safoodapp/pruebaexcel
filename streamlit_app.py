@@ -106,7 +106,7 @@ estado_producto = st.radio(
 )
 
 # -------------------------------------------
-# RADIO MULTICOLUMNA: ELABORACIÓN
+# RADIO MULTICOLUMNA: ELABORACIÓN (SIN BOTÓN VACÍO)
 # -------------------------------------------
 
 st.subheader("Forma de preparación")
@@ -117,15 +117,17 @@ cols = st.columns(num_cols)
 chunk_size = (len(ELABORACIONES) + num_cols - 1) // num_cols
 chunks = [ELABORACIONES[i:i + chunk_size] for i in range(0, len(ELABORACIONES), chunk_size)]
 
-seleccion = None
+forma_preparacion = None
 
 for idx, (col, opciones) in enumerate(zip(cols, chunks)):
     with col:
-        elegido = st.radio("", [""] + opciones, key=f"prep_{idx}")
-        if elegido != "":
-            seleccion = elegido
-
-forma_preparacion = seleccion
+        elegido = st.radio(
+            label="",
+            options=opciones,
+            key=f"prep_{idx}"
+        )
+        if elegido:
+            forma_preparacion = elegido
 
 if not forma_preparacion:
     st.warning("Debes seleccionar una forma de preparación.")
