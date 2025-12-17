@@ -109,7 +109,8 @@ metodo = st.selectbox(
 
 zona = arte = None
 
-if metodo == "Capturado":
+if metodo.lower().strip() == "capturado":
+
     zona = st.selectbox(
         "Zona de captura (FAO)",
         df_zonas.iloc[:, 0].dropna().unique()
@@ -196,4 +197,5 @@ if st.button("Generar etiqueta"):
         st.markdown(f"**Fecha de caducidad:** {fecha_cad}")
         st.markdown(f"**Expedidor:** {expedidor}")
         st.markdown(f"**Óvalo sanitario:** {ovalo}")
+
 
