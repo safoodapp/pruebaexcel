@@ -91,7 +91,8 @@ if pd.notna(producto["INGREDIENTES"]):
 # ALÉRGENOS (AUTOMÁTICOS)
 # ---------------------------------------------------------
 contiene = producto["ALERGENOS"]
-puede_contener = df_trazas["PUEDE_CONTENER"].iloc[0]
+puede_contener = df_trazas.iloc[0, 0]
+
 
 texto_alergenos = f"Contiene {contiene}. Puede contener {puede_contener}."
 st.text_input("Alérgenos", value=texto_alergenos, disabled=True)
@@ -195,3 +196,4 @@ if st.button("Generar etiqueta"):
         st.markdown(f"**Fecha de caducidad:** {fecha_cad}")
         st.markdown(f"**Expedidor:** {expedidor}")
         st.markdown(f"**Óvalo sanitario:** {ovalo}")
+
