@@ -64,6 +64,9 @@ estado = st.selectbox(
     df_estados.iloc[:, 0].dropna().unique()
 )
 
+estado = estado.lower().strip()
+
+
 nombre_comercial = f"{nombre_base} {forma} {estado}"
 st.success(f"Nombre comercial final: {nombre_comercial}")
 
@@ -197,5 +200,6 @@ if st.button("Generar etiqueta"):
         st.markdown(f"**Fecha de caducidad:** {fecha_cad}")
         st.markdown(f"**Expedidor:** {expedidor}")
         st.markdown(f"**Óvalo sanitario:** {ovalo}")
+
 
 
