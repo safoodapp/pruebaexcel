@@ -1,240 +1,197 @@
+
+
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
-from docxtpl import DocxTemplate
-import base64
-import os
-import locale
+from datetime import date
 
-# Configurar idioma
-try:
-    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-except:
-    try:
-        locale.setlocale(locale.LC_TIME, 'es_ES')
-    except:
-        pass
+st.set_page_config(page_title="Etiquetas pescado", layout="centered")
 
-# Configurar página
-st.set_page_config(page_title="Etiquetas de Santiago y Santiago", layout="centered")
+# =========================================================
+# CONFIGURACIÓN GOOGLE SHEETS
+# =========================================================
+SPREADSHEET_ID = "1gMEnVHqQmTqfhwMWmyybliH_ar4veAFq179FKpU6ZTA"
 
-# Pantalla inicial
-if "mostrar_formulario" not in st.session_state:
-    st.session_state.mostrar_formulario = False
+# 👉 PON AQUÍ LOS GID DE CADA PESTAÑA (UNA VEZ)
+GIDS = {
+    "PRODUCTOS": "PEGA_GID",
+    "FORMAS_TRANSFORMACION": "PEGA_GID",
+    "ESTADOS_PRODUCTO": "PEGA_GID",
+    "METODO_PRODUCCION": "PEGA_GID",
+    "ZONAS_FAO": "PEGA_GID",
+    "ARTES_PESCA": "PEGA_GID",
+    "EXPEDIDORES": "PEGA_GID",
+    "TRAZAS_CONFIG": "PEGA_GID",
+}
 
-if not st.session_state.mostrar_formulario:
-    st.markdown("<h1 style='text-align:center;'>Etiquetas de Santiago y Santiago</h1>", unsafe_allow_html=True)
-    if st.button("➕ Nueva etiqueta"):
-        st.session_state.mostrar_formulario = True
-    st.stop()
+def load_sheet(name):
+    url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={GIDS[name]}"
+    return pd.read_csv(url)
 
-# Cargar datos desde Google Sheets
-url = "https://docs.google.com/spreadsheets/d/1M-1zM8pxosv75N5gCtWaPkE1beQBOaMD/export?format=csv&gid=707739207"
+# =========================================================
+# CARGA DE DATOS
+# =========================================================
+df_productos = load_sheet("PRODUCTOS")
+df_transform = load_sheet("FORMAS_TRANSFORMACION")
+df_estados = load_sheet("ESTADOS_PRODUCTO")
+df_metodo = load_sheet("METODO_PRODUCCION")
+df_zonas = load_sheet("ZONAS_FAO")
+df_artes = load_sheet("ARTES_PESCA")
+df_exped = load_sheet("EXPEDIDORES")
+df_trazas = load_sheet("TRAZAS_CONFIG")
 
-try:
-    df = pd.read_csv(url)
-except Exception as e:
-    st.error(f"Error al cargar datos desde Google Sheets: {e}")
-    st.stop()
+# =========================================================
+# APP
+# =========================================================
+st.title("Generador de etiquetas – Productos de la pesca")
 
-# Preparar listas
-def opciones_columna(col):
-    try:
-        lista = sorted([str(x) for x in df[col].dropna().unique() if isinstance(x, str)])
-        return ["Selecciona una opción"] + lista
-    except:
-        return ["Selecciona una opción"]
+# ---------------------------------------------------------
+# IDENTIFICACIÓN COMERCIAL
+# ---------------------------------------------------------
+st.header("Identificación del producto")
 
-productos = opciones_columna("denominacion_comercial")
-formas = opciones_columna("forma_capturado")
-zonas = opciones_columna("zona_captura")
-paises = opciones_columna("pais_origen")
-artes = opciones_columna("arte_pesca")
-
-# -------------------------------------------
-# LISTAS NUEVAS: ESTADO Y ELABORACIONES
-# -------------------------------------------
-
-ESTADOS = ["Fresco", "Congelado", "Descongelado"]
-
-ELABORACIONES = [
-    "Entero",
-    "Eviscerado",
-    "Descabezado",
-    "Pelado",
-    "Limpio",
-    "Troceado",
-    "Desmigado",
-    "Picado",
-    "Trozos",
-    "Tacos",
-    "Migas",
-    "Bocados",
-    "Tiras",
-    "Anillas",
-    "Filetes",
-    "Rodajas",
-    "Medallones"
-]
-
-# Formulario
-st.header("🧾 Crear nueva etiqueta")
-
-producto = st.selectbox("Producto", productos)
-
-if producto != "Selecciona una opción":
-    fila = df[df["denominacion_comercial"] == producto].iloc[0]
-    nombre_cientifico = fila.get("nombre_cientifico", "")
-    ingredientes = fila.get("ingredientes", "")
-    plantilla_nombre = str(fila.get("plantilla", "plantilla_etiqueta")).strip()
-else:
-    nombre_cientifico = ""
-    ingredientes = ""
-    plantilla_nombre = "plantilla_etiqueta"
-
-st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
-st.text_area("Ingredientes", value=ingredientes, disabled=True)
-
-# -------------------------------------------
-# RADIO: ESTADO DEL PRODUCTO
-# -------------------------------------------
-
-estado_producto = st.radio(
-    "Estado del producto",
-    ESTADOS,
-    horizontal=True
+nombre_base = st.selectbox(
+    "Nombre base",
+    df_productos["NOMBRE_BASE"].dropna().unique()
 )
 
-# -------------------------------------------
-# RADIO MULTICOLUMNA: ELABORACIÓN (SIN BOTÓN VACÍO)
-# -------------------------------------------
+forma = st.selectbox(
+    "Forma de transformación",
+    df_transform.iloc[:, 0].dropna().unique()
+)
 
-st.subheader("Forma de preparación")
+estado = st.selectbox(
+    "Estado del producto",
+    df_estados.iloc[:, 0].dropna().unique()
+)
 
-num_cols = 3
-cols = st.columns(num_cols)
+nombre_comercial = f"{nombre_base} {forma} {estado}"
+st.success(f"Nombre comercial final: {nombre_comercial}")
 
-chunk_size = (len(ELABORACIONES) + num_cols - 1) // num_cols
-chunks = [ELABORACIONES[i:i + chunk_size] for i in range(0, len(ELABORACIONES), chunk_size)]
+# ---------------------------------------------------------
+# DATOS TÉCNICOS (CAPADOS)
+# ---------------------------------------------------------
+producto = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
 
-forma_preparacion = None
+st.header("Datos técnicos")
 
-for idx, (col, opciones) in enumerate(zip(cols, chunks)):
-    with col:
-        elegido = st.radio(
-            label="",
-            options=opciones,
-            key=f"prep_{idx}"
-        )
-        if elegido:
-            forma_preparacion = elegido
+st.text_input(
+    "Nombre científico",
+    value=producto["NOMBRE_CIENTIFICO"],
+    disabled=True
+)
 
-if not forma_preparacion:
-    st.warning("Debes seleccionar una forma de preparación.")
-    st.stop()
+if pd.notna(producto["INGREDIENTES"]):
+    st.text_input(
+        "Ingredientes",
+        value=producto["INGREDIENTES"],
+        disabled=True
+    )
 
-# -------------------------------------------
-# REGLA C: GENERACIÓN DE DENOMINACIÓN FINAL
-# -------------------------------------------
+# ---------------------------------------------------------
+# ALÉRGENOS (AUTOMÁTICOS)
+# ---------------------------------------------------------
+contiene = producto["ALERGENOS"]
+puede_contener = df_trazas["PUEDE_CONTENER"].iloc[0]
 
-cortes = [
-    "Filetes", "Rodajas", "Medallones", "Anillas",
-    "Tacos", "Trozos", "Migas", "Bocados", "Tiras",
-    "Desmigado", "Picado", "Troceado"
-]
+texto_alergenos = f"Contiene {contiene}. Puede contener {puede_contener}."
+st.text_input("Alérgenos", value=texto_alergenos, disabled=True)
 
-if forma_preparacion in cortes:
-    denominacion_final = f"{forma_preparacion} de {producto}"
-else:
-    denominacion_final = f"{producto} {forma_preparacion.lower()}"
+# ---------------------------------------------------------
+# ORIGEN DEL LOTE
+# ---------------------------------------------------------
+st.header("Origen del lote")
 
-# -------------------------------------------
-# CAPTURADO / ACUICULTURA
-# -------------------------------------------
+metodo = st.selectbox(
+    "Método de producción",
+    df_metodo.iloc[:, 0].dropna().unique()
+)
 
-forma = st.radio("Forma de capturado / producción", formas, horizontal=True)
+zona = arte = None
 
-if "acui" in forma.lower():
-    zona = ""
-    arte = ""
-    st.info("Producto de ACUICULTURA: no se aplica zona FAO ni arte de pesca.")
-else:
-    zona = st.selectbox("Zona de captura", zonas)
-    arte = st.selectbox("Arte de pesca", artes)
+if metodo == "Capturado":
+    zona = st.selectbox(
+        "Zona de captura (FAO)",
+        df_zonas.iloc[:, 0].dropna().unique()
+    )
+    arte = st.selectbox(
+        "Arte de pesca",
+        df_artes.iloc[:, 0].dropna().unique()
+    )
 
-pais = st.selectbox("País de origen", paises)
+# ---------------------------------------------------------
+# FECHAS
+# ---------------------------------------------------------
+st.header("Fechas")
 
-lote = st.text_input("Lote")
+fecha_cad = st.date_input(
+    "Fecha de caducidad",
+    min_value=date.today()
+)
 
-usar_fecha_descongelacion = st.checkbox("¿Indicar fecha de descongelación?")
-fecha_descongelacion = None
-fecha_caducidad = None
+fecha_cong = fecha_descong = None
 
-if usar_fecha_descongelacion:
-    fecha_descongelacion = st.date_input("Fecha de descongelación", format="DD/MM/YYYY")
-    fecha_caducidad = fecha_descongelacion + timedelta(days=3)
-    st.text_input("Fecha de caducidad", value=fecha_caducidad.strftime("%d/%m/%Y"), disabled=True)
-else:
-    fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
+if estado in ["congelado", "descongelado"]:
+    fecha_cong = st.date_input("Fecha de congelación")
 
-# -------------------------------------------
-# BOTÓN GENERAR
-# -------------------------------------------
+if estado == "descongelado":
+    fecha_descong = st.date_input("Fecha de descongelación")
 
-if st.button("✅ Generar etiqueta"):
+# ---------------------------------------------------------
+# DATOS LEGALES (OBLIGATORIOS)
+# ---------------------------------------------------------
+st.header("Datos legales")
 
-    campos = {
-        "denominacion_comercial": producto,
-        "denominacion_final": denominacion_final,
-        "nombre_cientifico": nombre_cientifico,
-        "ingredientes": ingredientes,
-        "estado_producto": estado_producto,
-        "forma_preparacion": forma_preparacion,
-        "forma_captura": forma,
-        "zona_captura": zona,
-        "pais_origen": pais,
-        "arte_pesca": arte,
-        "lote": lote,
-        "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
-        "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
-    }
+expedidor = st.selectbox(
+    "Expedidor",
+    df_exped["EXPEDIDOR"].dropna().unique()
+)
 
-    # Validación
-    campos_obligatorios = {
-        "Producto": producto,
-        "Forma de captura": forma,
-        "País de origen": pais,
-        "Lote": lote
-    }
+ovalo = df_exped[df_exped["EXPEDIDOR"] == expedidor]["OVALO_SANITARIO"].iloc[0]
+st.text_input("Óvalo sanitario", value=ovalo, disabled=True)
 
-    if "acui" not in forma.lower():
-        campos_obligatorios["Zona de captura"] = zona
-        campos_obligatorios["Arte de pesca"] = arte
+# ---------------------------------------------------------
+# VALIDACIÓN FINAL
+# ---------------------------------------------------------
+st.divider()
 
-    faltan = [k for k, v in campos_obligatorios.items() if not v or v == "Selecciona una opción"]
+if st.button("Generar etiqueta"):
+    errores = []
 
-    if faltan:
-        st.warning(f"Debes completar todos los campos obligatorios: {', '.join(faltan)}")
-        st.stop()
+    if metodo == "Capturado":
+        if not zona:
+            errores.append("Falta la zona de captura")
+        if not arte:
+            errores.append("Falta el arte de pesca")
 
-    plantilla_path = f"{plantilla_nombre}.docx"
+    if estado == "congelado" and not fecha_cong:
+        errores.append("Falta la fecha de congelación")
 
-    if not os.path.exists(plantilla_path):
-        st.error(f"No se encontró la plantilla: {plantilla_path}")
+    if estado == "descongelado" and (not fecha_cong or not fecha_descong):
+        errores.append("Faltan fechas de congelación o descongelación")
+
+    if not expedidor or not ovalo:
+        errores.append("Faltan datos de expedidor u óvalo sanitario")
+
+    if errores:
+        st.error(" | ".join(errores))
     else:
-        doc = DocxTemplate(plantilla_path)
-        doc.render(campos)
+        st.success("Etiqueta validada correctamente")
 
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{timestamp}.docx"
-        doc.save(output_docx)
-
-        with open(output_docx, "rb") as file:
-            b64_docx = base64.b64encode(file.read()).decode()
-            st.markdown(
-                f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
-                unsafe_allow_html=True
-            )
-
-        st.success("Etiqueta generada correctamente.")
-
+        st.markdown("### 🏷️ Resumen de etiqueta")
+        st.markdown(f"**Nombre comercial:** {nombre_comercial}")
+        st.markdown(f"**Nombre científico:** {producto['NOMBRE_CIENTIFICO']}")
+        if pd.notna(producto["INGREDIENTES"]):
+            st.markdown(f"**Ingredientes:** {producto['INGREDIENTES']}")
+        st.markdown(f"**Alérgenos:** {texto_alergenos}")
+        st.markdown(f"**Método de producción:** {metodo}")
+        if metodo == "Capturado":
+            st.markdown(f"**Zona FAO:** {zona}")
+            st.markdown(f"**Arte de pesca:** {arte}")
+        st.markdown(f"**Estado:** {estado}")
+        if fecha_cong:
+            st.markdown(f"**Fecha congelación:** {fecha_cong}")
+        if fecha_descong:
+            st.markdown(f"**Fecha descongelación:** {fecha_descong}")
+        st.markdown(f"**Fecha de caducidad:** {fecha_cad}")
+        st.markdown(f"**Expedidor:** {expedidor}")
+        st.markdown(f"**Óvalo sanitario:** {ovalo}")

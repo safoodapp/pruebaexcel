@@ -1,6 +1,2 @@
 streamlit
 pandas
-python-docx
-docxtpl
-docx2pdf
-reportlab
