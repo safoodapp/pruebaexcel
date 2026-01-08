@@ -39,6 +39,8 @@ df_artes = load_sheet("ARTES_PESCA")
 df_exped = load_sheet("EXPEDIDORES")
 df_trazas = load_sheet("TRAZAS_CONFIG")
 
+
+
 # =========================================================
 # APP
 # =========================================================
@@ -91,14 +93,40 @@ if pd.notna(producto["INGREDIENTES"]):
     )
 
 # ---------------------------------------------------------
-# ALÉRGENOS (AUTOMÁTICOS)
+# ALÉRGENOS (AUTOMÁTICOS SEGÚN CONTIENE)
 # ---------------------------------------------------------
-contiene = producto["ALERGENOS"]
-puede_contener = df_trazas.iloc[0, 0]
+def norm_upper(x):
+    return str(x).strip().upper()
 
+contiene = norm_upper(producto["ALERGENOS"])
 
-texto_alergenos = f"Contiene {contiene}. Puede contener {puede_contener}."
+# Asegurar columnas esperadas
+cols = [c.strip().upper() for c in df_trazas.columns]
+# Creamos un mapa por si vienen en minúsculas o con espacios
+colmap = {c.strip().upper(): c for c in df_trazas.columns}
+
+if "CONTIENE" not in cols or "PUEDE_CONTENER" not in cols:
+    st.error("La hoja TRAZAS_CONFIG debe tener columnas: CONTIENE y PUEDE_CONTENER")
+    st.stop()
+
+col_contiene = colmap["CONTIENE"]
+col_puede = colmap["PUEDE_CONTENER"]
+
+df_trazas[col_contiene] = df_trazas[col_contiene].astype(str).str.strip().str.upper()
+match = df_trazas[df_trazas[col_contiene] == contiene]
+
+puede_contener = ""
+if not match.empty:
+    puede_contener = str(match.iloc[0][col_puede]).strip()
+
+if puede_contener:
+    texto_alergenos = f"Contiene {contiene}. Puede contener {puede_contener}."
+else:
+    texto_alergenos = f"Contiene {contiene}."
+
 st.text_input("Alérgenos", value=texto_alergenos, disabled=True)
+
+
 
 # ---------------------------------------------------------
 # ORIGEN DEL LOTE
@@ -200,6 +228,7 @@ if st.button("Generar etiqueta"):
         st.markdown(f"**Fecha de caducidad:** {fecha_cad}")
         st.markdown(f"**Expedidor:** {expedidor}")
         st.markdown(f"**Óvalo sanitario:** {ovalo}")
+
 
 
 
