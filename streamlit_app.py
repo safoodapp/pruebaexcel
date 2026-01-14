@@ -26,98 +26,107 @@ def load_sheet(name):
     url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={GIDS[name]}"
     return pd.read_csv(url)
 
+# Función para añadir la opción por defecto a las listas
+def preparar_lista(df, col_idx=None, col_name=None):
+    if col_name:
+        items = df[col_name].dropna().unique().tolist()
+    else:
+        items = df.iloc[:, col_idx].dropna().unique().tolist()
+    return ["Selecciona una opción"] + items
+
 # =========================================================
-# FUNCIÓN GENERADORA DE PDF (DISEÑO SEGÚN MOKUP)
+# FUNCIÓN GENERADORA DE PDF
 # =========================================================
 def generar_pdf_a4(datos, cantidad):
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
     
-    # Configuración de cuadrícula (2 columnas x 3 filas = 6 etiquetas por A4)
     ancho_et, alto_et = 95, 90
     mx, my = 7, 10
-    x, y = mx, my
+    curr_x, curr_y = mx, my
 
     for i in range(cantidad):
-        # Dibujar recuadro y secciones
-        pdf.rect(x, y, ancho_et, alto_et)
+        pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # Bloque 1: Nombre Comercial y Científico
+        # Bloque 1: Cabecera
         pdf.set_fill_color(245, 245, 245)
-        pdf.rect(x, y, ancho_et, 16, 'F')
-        pdf.rect(x, y, ancho_et, 16)
-        pdf.set_xy(x, y + 2)
+        pdf.rect(curr_x, curr_y, ancho_et, 16, 'F')
+        pdf.rect(curr_x, curr_y, ancho_et, 16)
+        pdf.set_xy(curr_x, curr_y + 2)
         pdf.set_font("Arial", 'B', 10)
-        pdf.multi_cell(ancho_et, 5, datos['nombre_comercial'].upper(), align='C')
+        pdf.multi_cell(ancho_et, 5, str(datos['nombre_comercial']).upper(), align='C')
+        pdf.set_xy(curr_x, curr_y + 11)
         pdf.set_font("Arial", 'I', 8)
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C')
 
-        # Bloque 2: Ingredientes y Alérgenos
-        pdf.rect(x, y + 16, ancho_et, 12)
+        # Bloque 2: Alérgenos
+        pdf.rect(curr_x, curr_y + 16, ancho_et, 12)
         pdf.set_font("Arial", 'B', 7)
-        pdf.set_xy(x + 2, y + 17)
-        pdf.multi_cell(ancho_et - 4, 3, datos['alergenos'].upper())
+        pdf.set_xy(curr_x + 2, curr_y + 17)
+        pdf.multi_cell(ancho_et - 4, 3, str(datos['alergenos']).upper())
 
-        # Bloque 3: Datos de Origen
-        pdf.rect(x, y + 28, ancho_et, 18)
+        # Bloque 3: Datos de Origen (Solo si existen)
+        pdf.rect(curr_x, curr_y + 28, ancho_et, 18)
         pdf.set_font("Arial", '', 8)
-        pdf.set_xy(x + 5, y + 30)
-        pdf.cell(0, 4, f"- ZONA: {datos['zona'] or 'N/A'}", ln=True)
-        pdf.set_xy(x + 5, y + 34)
-        pdf.cell(0, 4, f"- MÉTODO: {datos['metodo']}", ln=True)
-        pdf.set_xy(x + 5, y + 38)
-        pdf.cell(0, 4, f"- ARTE DE PESCA: {datos['arte'] or 'N/A'}", ln=True)
+        pdf.set_xy(curr_x + 5, curr_y + 30)
+        if datos['zona']:
+            pdf.cell(0, 4, f"- ZONA: {datos['zona']}")
+        pdf.set_xy(curr_x + 5, curr_y + 34)
+        pdf.cell(0, 4, f"- METODO: {datos['metodo']}")
+        pdf.set_xy(curr_x + 5, curr_y + 38)
+        if datos['arte']:
+            pdf.cell(0, 4, f"- ARTE DE PESCA: {datos['arte']}")
 
-        # Bloque 4: Estado y Advertencia
-        pdf.rect(x, y + 46, ancho_et, 10)
+        # Bloque 4: Estado
+        pdf.rect(curr_x, curr_y + 46, ancho_et, 10)
+        pdf.set_xy(curr_x, curr_y + 47)
         pdf.set_font("Arial", 'B', 8)
-        pdf.set_xy(x, y + 47)
-        pdf.cell(ancho_et, 4, f"PRODUCTO {datos['estado'].upper()}", align='C', ln=True)
+        pdf.cell(ancho_et, 4, f"PRODUCTO {str(datos['estado']).upper()}", align='C', ln=True)
         pdf.set_font("Arial", '', 7)
+        pdf.set_x(curr_x)
         pdf.cell(ancho_et, 3, "COCINAR COMPLETAMENTE ANTES DE CONSUMIR", align='C')
 
-        # Bloque 5: Lote y Fechas
-        pdf.rect(x, y + 56, ancho_et, 18)
+        # Bloque 5: Trazabilidad
+        pdf.rect(curr_x, curr_y + 56, ancho_et, 18)
+        pdf.set_xy(curr_x + 5, curr_y + 58)
         pdf.set_font("Arial", 'B', 9)
-        pdf.set_xy(x + 5, y + 58)
-        pdf.cell(0, 4, f"LOTE: {datos['lote']}", ln=True)
+        pdf.cell(0, 4, f"LOTE: {datos['lote']}")
         pdf.set_font("Arial", '', 8)
-        pdf.set_xy(x + 5, y + 63)
-        if datos['f_descong']: pdf.cell(0, 4, f"F. DESCONGELACIÓN: {datos['f_descong']}", ln=True)
-        pdf.set_xy(x + 5, y + 67)
-        pdf.cell(0, 4, f"F. CADUCIDAD: {datos['f_cad']}", ln=True)
+        if datos['f_descong']:
+            pdf.set_xy(curr_x + 5, curr_y + 63)
+            pdf.cell(0, 4, f"F. DESCONGELACION: {datos['f_descong']}")
+        pdf.set_xy(curr_x + 5, curr_y + 67)
+        pdf.cell(0, 4, f"F. CADUCIDAD: {datos['f_cad']}")
 
-        # Bloque 6: Expedidor y Óvalo (Diseño fiel al esquema)
-        pdf.rect(x, y + 74, ancho_et, 16)
+        # Bloque 6: Expedidor y Óvalo
+        pdf.rect(curr_x, curr_y + 74, ancho_et, 16)
         pdf.set_font("Arial", '', 6)
-        pdf.set_xy(x + 2, y + 76)
-        pdf.multi_cell(ancho_et - 30, 3, f"{datos['expedidor']}\nCalle Laguna del Marquesado 43C\n28021 Madrid")
+        pdf.set_xy(curr_x + 2, curr_y + 76)
+        pdf.multi_cell(ancho_et - 30, 3, f"{datos['expedidor']}\nCalle Laguna del Marquesado 43C, Nave 43C\n28021 Madrid")
         
-        # Óvalo Sanitario
-        pdf.ellipse(x + 68, y + 76, 22, 12)
-        pdf.set_xy(x + 68, y + 78)
+        pdf.ellipse(curr_x + 68, curr_y + 76, 22, 12)
+        pdf.set_xy(curr_x + 68, curr_y + 78)
         pdf.set_font("Arial", 'B', 6)
         pdf.cell(22, 3, "ES", align='C', ln=True)
-        pdf.set_xy(x + 68, y + 80)
-        pdf.cell(22, 3, datos['ovalo'], align='C', ln=True)
-        pdf.set_xy(x + 68, y + 82)
+        pdf.set_xy(curr_x + 68, curr_y + 80)
+        pdf.cell(22, 3, str(datos['ovalo']), align='C', ln=True)
+        pdf.set_xy(curr_x + 68, curr_y + 82)
         pdf.cell(22, 3, "CE", align='C')
 
-        # Lógica de posición
         if (i + 1) % 2 == 0:
-            x = mx
-            y += alto_et + 5
+            curr_x = mx
+            curr_y += alto_et + 5
         else:
-            x += ancho_et + 5
+            curr_x += ancho_et + 5
         if (i + 1) % 6 == 0 and (i + 1) < cantidad:
             pdf.add_page()
-            x, y = mx, my
+            curr_x, curr_y = mx, my
             
     return pdf.output(dest='S').encode('latin-1')
 
 # =========================================================
-# CARGA DE DATOS Y APP
+# CARGA DE DATOS
 # =========================================================
 df_productos = load_sheet("PRODUCTOS")
 df_transform = load_sheet("FORMAS_TRANSFORMACION")
@@ -128,54 +137,67 @@ df_artes = load_sheet("ARTES_PESCA")
 df_exped = load_sheet("EXPEDIDORES")
 df_trazas = load_sheet("TRAZAS_CONFIG")
 
+# =========================================================
+# INTERFAZ STREAMLIT
+# =========================================================
 st.title("Generador Profesional de Etiquetas")
 
-# Formulario
-with st.container():
-    col1, col2 = st.columns(2)
-    with col1:
-        nombre_base = st.selectbox("Producto", df_productos["NOMBRE_BASE"].unique())
-        forma = st.selectbox("Transformación", df_transform.iloc[:, 0].unique())
-        estado = st.selectbox("Estado", df_estados.iloc[:, 0].unique())
-        lote = st.text_input("Número de Lote", placeholder="Ej: L26006")
-    
-    with col2:
-        metodo = st.selectbox("Producción", df_metodo.iloc[:, 0].unique())
-        fecha_cad = st.date_input("Caducidad", value=date.today())
-        cantidad = st.number_input("Cantidad de etiquetas", min_value=1, value=1)
-        expedidor = st.selectbox("Expedidor", df_exped["EXPEDIDOR"].unique())
+col1, col2 = st.columns(2)
+with col1:
+    nombre_base = st.selectbox("Producto", preparar_lista(df_productos, col_name="NOMBRE_BASE"))
+    forma = st.selectbox("Transformación", preparar_lista(df_transform, col_idx=0))
+    estado = st.selectbox("Estado", preparar_lista(df_estados, col_idx=0))
+    lote = st.text_input("Número de Lote", placeholder="Ej: L26006")
+with col2:
+    metodo = st.selectbox("Producción", preparar_lista(df_metodo, col_idx=0))
+    fecha_cad = st.date_input("Caducidad", value=date.today())
+    cantidad = st.number_input("Cantidad de etiquetas", min_value=1, value=1)
+    expedidor = st.selectbox("Expedidor", preparar_lista(df_exped, col_name="EXPEDIDOR"))
 
-# Variables automáticas
-producto = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
-nombre_comercial = f"{nombre_base} {forma} {estado}"
-ovalo = df_exped[df_exped["EXPEDIDOR"] == expedidor]["OVALO_SANITARIO"].iloc[0]
-texto_alergenos = f"Contiene {producto['ALERGENOS']}. Puede contener {df_trazas['PUEDE_CONTENER'].iloc[0]}."
-
-# Origen condicional
+# Variables condicionales (Zona y Arte solo si es Capturado)
 zona = arte = None
-if metodo == "Capturado":
+if "Capturado" in metodo:
     c3, c4 = st.columns(2)
-    with c3: zona = st.selectbox("Zona FAO", df_zonas.iloc[:, 0].unique())
-    with c4: arte = st.selectbox("Arte", df_artes.iloc[:, 0].unique())
+    with c3: zona = st.selectbox("Zona FAO", preparar_lista(df_zonas, col_idx=0))
+    with c4: arte = st.selectbox("Arte", preparar_lista(df_artes, col_idx=0))
 
-fecha_descong = st.date_input("F. Descongelación") if estado == "descongelado" else None
+# Fecha descongelación obligatoria solo si el estado es descongelado
+fecha_descong = None
+if estado.upper() == "DESCONGELADO":
+    fecha_descong = st.date_input("Fecha de Descongelación")
 
 # =========================================================
-# GENERACIÓN FINAL
-# =========================================
+# VALIDACIÓN Y BOTÓN
+# =========================================================
 st.divider()
 
-if st.button("🚀 GENERAR ETIQUETAS"):
-    if not lote:
-        st.error("Es obligatorio introducir un número de lote.")
-    else:
-        datos_etiqueta = {
+# Lista de validación
+errores = []
+if "Selecciona una opción" in [nombre_base, forma, estado, metodo, expedidor]:
+    errores.append("Faltan selectores por elegir.")
+if not lote.strip():
+    errores.append("El Lote es obligatorio.")
+if "Capturado" in metodo and ("Selecciona una opción" in [str(zona), str(arte)]):
+    errores.append("Faltan datos de Zona o Arte para pesca capturada.")
+
+if errores:
+    st.warning("⚠️ " + " | ".join(errores))
+    st.button("🚀 GENERAR ETIQUETAS", disabled=True)
+else:
+    # Si todo está OK, preparamos datos y mostramos el botón
+    producto_data = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
+    nombre_comercial = f"{nombre_base} {forma} {estado}"
+    ovalo = df_exped[df_exped["EXPEDIDOR"] == expedidor]["OVALO_SANITARIO"].iloc[0]
+    texto_alergenos = f"Contiene {producto_data['ALERGENOS']}. Puede contener {df_trazas['PUEDE_CONTENER'].iloc[0]}."
+
+    if st.button("🚀 GENERAR ETIQUETAS"):
+        info_final = {
             "nombre_comercial": nombre_comercial,
-            "nombre_cientifico": producto["NOMBRE_CIENTIFICO"],
+            "nombre_cientifico": producto_data["NOMBRE_CIENTIFICO"],
             "alergenos": texto_alergenos,
             "metodo": metodo,
-            "zona": zona,
-            "arte": arte,
+            "zona": zona if zona != "Selecciona una opción" else None,
+            "arte": arte if arte != "Selecciona una opción" else None,
             "estado": estado,
             "lote": lote,
             "f_cad": fecha_cad.strftime("%d/%m/%Y"),
@@ -184,9 +206,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             "ovalo": ovalo
         }
         
-        pdf_res = generar_pdf_a4(datos_etiqueta, cantidad)
-        
-        st.success(f"¡Etiquetas listas! Se han generado {cantidad} unidades.")
+        pdf_res = generar_pdf_a4(info_final, cantidad)
         st.download_button(
             label="📥 DESCARGAR PDF PARA IMPRIMIR",
             data=pdf_res,
