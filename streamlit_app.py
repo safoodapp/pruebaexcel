@@ -26,7 +26,6 @@ def load_sheet(name):
     url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={GIDS[name]}"
     return pd.read_csv(url)
 
-# Función para añadir la opción por defecto a las listas
 def preparar_lista(df, col_idx=None, col_name=None):
     if col_name:
         items = df[col_name].dropna().unique().tolist()
@@ -66,17 +65,15 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_xy(curr_x + 2, curr_y + 17)
         pdf.multi_cell(ancho_et - 4, 3, str(datos['alergenos']).upper())
 
-        # Bloque 3: Datos de Origen (Solo si existen)
+        # Bloque 3: Origen
         pdf.rect(curr_x, curr_y + 28, ancho_et, 18)
         pdf.set_font("Arial", '', 8)
         pdf.set_xy(curr_x + 5, curr_y + 30)
-        if datos['zona']:
-            pdf.cell(0, 4, f"- ZONA: {datos['zona']}")
+        if datos['zona']: pdf.cell(0, 4, f"- ZONA: {datos['zona']}")
         pdf.set_xy(curr_x + 5, curr_y + 34)
         pdf.cell(0, 4, f"- METODO: {datos['metodo']}")
         pdf.set_xy(curr_x + 5, curr_y + 38)
-        if datos['arte']:
-            pdf.cell(0, 4, f"- ARTE DE PESCA: {datos['arte']}")
+        if datos['arte']: pdf.cell(0, 4, f"- ARTE DE PESCA: {datos['arte']}")
 
         # Bloque 4: Estado
         pdf.rect(curr_x, curr_y + 46, ancho_et, 10)
@@ -99,7 +96,7 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_xy(curr_x + 5, curr_y + 67)
         pdf.cell(0, 4, f"F. CADUCIDAD: {datos['f_cad']}")
 
-        # Bloque 6: Expedidor y Óvalo
+        # Bloque 6: Empresa y Óvalo
         pdf.rect(curr_x, curr_y + 74, ancho_et, 16)
         pdf.set_font("Arial", '', 6)
         pdf.set_xy(curr_x + 2, curr_y + 76)
@@ -154,37 +151,41 @@ with col2:
     cantidad = st.number_input("Cantidad de etiquetas", min_value=1, value=1)
     expedidor = st.selectbox("Expedidor", preparar_lista(df_exped, col_name="EXPEDIDOR"))
 
-# Variables condicionales (Zona y Arte solo si es Capturado)
-zona = arte = None
-if "Capturado" in metodo:
+# --- LÓGICA DINÁMICA (SOLO OCULTA SI ES ACUICULTURA) ---
+zona = None
+arte = None
+
+if "acuicultura" not in str(metodo).lower() and metodo != "Selecciona una opción":
+    st.subheader("📍 Datos de Origen (Zona y Arte)")
     c3, c4 = st.columns(2)
     with c3: zona = st.selectbox("Zona FAO", preparar_lista(df_zonas, col_idx=0))
     with c4: arte = st.selectbox("Arte", preparar_lista(df_artes, col_idx=0))
 
-# Fecha descongelación obligatoria solo si el estado es descongelado
 fecha_descong = None
-if estado.upper() == "DESCONGELADO":
-    fecha_descong = st.date_input("Fecha de Descongelación")
+if "descongelado" in str(estado).lower():
+    st.subheader("❄️ Datos de Descongelación")
+    fecha_descong = st.date_input("Fecha de Descongelación", value=date.today())
 
 # =========================================================
 # VALIDACIÓN Y BOTÓN
 # =========================================================
 st.divider()
 
-# Lista de validación
 errores = []
 if "Selecciona una opción" in [nombre_base, forma, estado, metodo, expedidor]:
-    errores.append("Faltan selectores por elegir.")
+    errores.append("Faltan campos por elegir.")
 if not lote.strip():
     errores.append("El Lote es obligatorio.")
-if "Capturado" in metodo and ("Selecciona una opción" in [str(zona), str(arte)]):
-    errores.append("Faltan datos de Zona o Arte para pesca capturada.")
+if "acuicultura" not in str(metodo).lower() and metodo != "Selecciona una opción":
+    if zona == "Selecciona una opción" or arte == "Selecciona una opción":
+        errores.append("Indica Zona y Arte.")
+if "descongelado" in str(estado).lower() and not fecha_descong:
+    errores.append("Fecha de descongelación obligatoria.")
 
 if errores:
-    st.warning("⚠️ " + " | ".join(errores))
+    for err in errores: st.warning(f"⚠️ {err}")
     st.button("🚀 GENERAR ETIQUETAS", disabled=True)
 else:
-    # Si todo está OK, preparamos datos y mostramos el botón
     producto_data = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
     nombre_comercial = f"{nombre_base} {forma} {estado}"
     ovalo = df_exped[df_exped["EXPEDIDOR"] == expedidor]["OVALO_SANITARIO"].iloc[0]
@@ -194,22 +195,14 @@ else:
         info_final = {
             "nombre_comercial": nombre_comercial,
             "nombre_cientifico": producto_data["NOMBRE_CIENTIFICO"],
-            "alergenos": texto_alergenos,
-            "metodo": metodo,
+            "alergenos": texto_alergenos, "metodo": metodo,
             "zona": zona if zona != "Selecciona una opción" else None,
             "arte": arte if arte != "Selecciona una opción" else None,
-            "estado": estado,
-            "lote": lote,
+            "estado": estado, "lote": lote,
             "f_cad": fecha_cad.strftime("%d/%m/%Y"),
             "f_descong": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
-            "expedidor": expedidor,
-            "ovalo": ovalo
+            "expedidor": expedidor, "ovalo": ovalo
         }
-        
         pdf_res = generar_pdf_a4(info_final, cantidad)
-        st.download_button(
-            label="📥 DESCARGAR PDF PARA IMPRIMIR",
-            data=pdf_res,
-            file_name=f"etiquetas_{lote}.pdf",
-            mime="application/pdf"
-        )
+        st.download_button("📥 DESCARGAR PDF", data=pdf_res, file_name=f"etiquetas_{lote}.pdf", mime="application/pdf")
+        st.balloons()
