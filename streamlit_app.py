@@ -167,24 +167,13 @@ def generar_pdf_a4(datos, cantidad):
         pdf.cell(18, 2.5, "ES", align='C', ln=True)
         pdf.cell(18, 2.5, str(datos['ovalo']), align='C', ln=True)
         pdf.cell(18, 2.5, "CE", align='C')
-
+# Lógica para organizar 6 etiquetas por página (2 columnas x 3 filas)
         if (i + 1) % 2 == 0:
             curr_x = mx
             curr_y += alto_et + 2
         else:
             curr_x += ancho_et + 2
-        if (i + 1) % 6 == 0 and (i + 1) < cantidad:
-            pdf.add_page()
-            curr_x, curr_y = mx, my
             
-    return pdf.output(dest='S').encode('latin-1')
-
-        # Lógica para organizar 6 etiquetas por página (2 columnas x 3 filas)
-        if (i + 1) % 2 == 0:
-            curr_x = mx
-            curr_y += alto_et + 3
-        else:
-            curr_x += ancho_et + 3
         if (i + 1) % 6 == 0 and (i + 1) < cantidad:
             pdf.add_page()
             curr_x, curr_y = mx, my
@@ -244,3 +233,4 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         pdf_bytes = generar_pdf_a4(info_etiqueta, cantidad)
         st.success("✅ Etiqueta creada correctamente.")
         st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
+
