@@ -82,17 +82,102 @@ if "DESCONGELADO" in str(estado).upper():
     fecha_descong = st.date_input("Fecha de Descongelación", value=date.today())
 
 # =========================================================
-# 4. GENERACIÓN DE PDF Y LÓGICA DE ALÉRGENOS
+# FUNCIÓN DE DIBUJO PDF (Pon esto ANTES del botón de generar)
 # =========================================================
-def generar_pdf(datos, cantidad):
+def generar_pdf_a4(datos, cantidad):
     pdf = FPDF()
+    pdf.set_auto_page_break(auto=True, margin=10)
     pdf.add_page()
-    pdf.set_font("Arial", size=8)
-    # ... (Aquí va tu estructura de diseño de celdas pdf.rect, pdf.cell, etc.)
-    # Por brevedad se omite el diseño visual repetitivo, pero usa los campos:
-    # datos['nombre_completo'], datos['mencion_conservacion'], datos['trazas'], etc.
-    return pdf.output(dest='S').encode('latin-1')
+    
+    ancho_et, alto_et = 95, 95
+    mx, my = 7, 10
+    curr_x, curr_y = mx, my
 
+    for i in range(int(cantidad)):
+        # Dibujar el borde
+        pdf.rect(curr_x, curr_y, ancho_et, alto_et)
+        
+        # 1. Cabecera (Nombre y Estado)
+        pdf.set_fill_color(245, 245, 245)
+        pdf.rect(curr_x, curr_y, ancho_et, 18, 'F')
+        pdf.set_xy(curr_x, curr_y + 3)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.multi_cell(ancho_et, 4.5, str(datos['nombre_completo']).upper(), align='C')
+        pdf.set_xy(curr_x, curr_y + 13)
+        pdf.set_font("Arial", 'I', 8)
+        pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C')
+
+        # 2. Ingredientes y Alérgenos
+        pdf.rect(curr_x, curr_y + 18, ancho_et, 18)
+        y_int = curr_y + 19
+        if datos['ingredientes']:
+            pdf.set_font("Arial", 'B', 7)
+            pdf.set_xy(curr_x + 2, y_int)
+            pdf.cell(20, 3, "INGREDIENTES:")
+            pdf.set_font("Arial", '', 7)
+            pdf.multi_cell(ancho_et - 22, 3, datos['ingredientes'])
+            y_int = pdf.get_y() + 1
+
+        pdf.set_font("Arial", 'B', 8)
+        pdf.set_xy(curr_x + 2, y_int)
+        pdf.cell(ancho_et - 4, 3, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
+        if datos['trazas']:
+            pdf.set_font("Arial", 'I', 7)
+            pdf.set_x(curr_x + 2)
+            pdf.cell(ancho_et - 4, 3, f"Puede contener: {datos['trazas']}")
+
+        # 3. Origen y Método
+        pdf.rect(curr_x, curr_y + 36, ancho_et, 16)
+        pdf.set_font("Arial", '', 8)
+        pdf.set_xy(curr_x + 5, curr_y + 38)
+        if datos['zona']: pdf.cell(0, 4, f"- ZONA: {datos['zona']}")
+        pdf.set_xy(curr_x + 5, curr_y + 42)
+        pdf.cell(0, 4, f"- METODO: {datos['metodo']}")
+        pdf.set_xy(curr_x + 5, curr_y + 46)
+        if datos['arte']: pdf.cell(0, 4, f"- ARTE DE PESCA: {datos['arte']}")
+
+        # 4. Conservación (RD 1082/2025)
+        pdf.rect(curr_x, curr_y + 52, ancho_et, 12)
+        pdf.set_xy(curr_x + 2, curr_y + 54)
+        pdf.set_font("Arial", 'B', 7)
+        pdf.multi_cell(ancho_et - 4, 3.5, datos['mencion_conservacion'], align='C')
+
+        # 5. Trazabilidad y Fechas
+        pdf.rect(curr_x, curr_y + 64, ancho_et, 15)
+        pdf.set_xy(curr_x + 5, curr_y + 66)
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(0, 4, f"LOTE: {datos['lote']}")
+        pdf.set_font("Arial", '', 8)
+        pdf.set_xy(curr_x + 5, curr_y + 70)
+        f_desc_txt = f"   DESCONG: {datos['f_descong']}" if datos['f_descong'] else ""
+        pdf.cell(0, 4, f"CAD: {datos['f_cad']}{f_desc_txt}")
+
+        # 6. Empresa y Óvalo Sanitario
+        pdf.rect(curr_x, curr_y + 79, ancho_et, 16)
+        pdf.set_font("Arial", '', 6)
+        pdf.set_xy(curr_x + 2, curr_y + 81)
+        pdf.multi_cell(ancho_et - 30, 3, f"{datos['expedidor']}\nCalle Laguna del Marquesado 43C, Nave 43C\n28021 Madrid")
+        
+        pdf.ellipse(curr_x + 70, curr_y + 81, 20, 12)
+        pdf.set_xy(curr_x + 70, curr_y + 83)
+        pdf.set_font("Arial", 'B', 6)
+        pdf.cell(20, 3, "ES", align='C', ln=True)
+        pdf.set_xy(curr_x + 70, curr_y + 85)
+        pdf.cell(20, 3, str(datos['ovalo']), align='C', ln=True)
+        pdf.set_xy(curr_x + 70, curr_y + 87)
+        pdf.cell(20, 3, "CE", align='C')
+
+        # Lógica para organizar 6 etiquetas por página (2 columnas x 3 filas)
+        if (i + 1) % 2 == 0:
+            curr_x = mx
+            curr_y += alto_et + 3
+        else:
+            curr_x += ancho_et + 3
+        if (i + 1) % 6 == 0 and (i + 1) < cantidad:
+            pdf.add_page()
+            curr_x, curr_y = mx, my
+            
+    return pdf.output(dest='S').encode('latin-1')
 st.divider()
 
 if st.button("🚀 GENERAR ETIQUETAS"):
@@ -152,3 +237,4 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
