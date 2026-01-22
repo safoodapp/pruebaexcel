@@ -181,42 +181,67 @@ with col2:
 zona = st.selectbox("Zona FAO", preparar_lista(df_zonas, col_idx=0)) if "acuicultura" not in str(metodo).lower() else None
 arte = st.selectbox("Arte", preparar_lista(df_artes, col_idx=0)) if "acuicultura" not in str(metodo).lower() else None
 
+# =========================================================
+# BLOQUE FINAL CORREGIDO: COPIA DESDE AQUÍ HASTA EL FINAL
+# =========================================================
+
 if st.button("🚀 GENERAR ETIQUETAS"):
     if "Selecciona una opción" not in [nombre_base, forma, estado, metodo]:
+        # 1. Obtener los datos del producto seleccionado
         prod_row = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
         
-        # 1. Concordancia
+        # 2. Lógica de Género (Detectar si es Merluza, Gamba, etc.)
         gen = obtener_genero(nombre_base)
-        nombre_final = f"{nombre_base} {ajustar_genero(forma, gen)} {ajustar_genero(estado, gen)}"
         
-        # 2. Alérgenos y Trazas (Lookup en TRAZAS_CONFIG)
+        # 3. Aplicar Concordancia (Transformación + Estado)
+        forma_adj = ajustar_genero(forma, gen)
+        estado_adj = ajustar_genero(estado, gen)
+        nombre_final = f"{nombre_base} {forma_adj} {estado_adj}"
+        
+        # 4. Cruce con la tabla de TRAZAS_CONFIG
         alergeno_principal = limpiar_nan(prod_row["ALERGENOS"])
-        # Buscamos en la hoja de configuración la traza asociada a este alérgeno
-        trazas_asociadas = df_trazas_config[df_trazas_config["ALERGENO"] == alergeno_principal]
-        trazas_final = trazas_asociadas["PUEDE_CONTENER"].iloc[0] if not trazas_asociadas.empty else ""
+        trazas_final = ""
+        
+        if alergeno_principal:
+            # Buscamos en la hoja TRAZAS_CONFIG la fila donde la columna ALERGENO coincida
+            mask = df_trazas_config["ALERGENO"].astype(str).str.strip().str.upper() == alergeno_principal.strip().upper()
+            match = df_trazas_config[mask]
+            
+            if not match.empty:
+                trazas_final = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
 
-        # 3. Menciones de Conservación
+        # 5. Lógica de Conservación por Temperaturas (RD 1082/2025)
         mencion = "CONSERVAR ENTRE 0 Y 4ºC"
         if "descongelado" in estado.lower():
             mencion = "PRODUCTO DESCONGELADO. NO VOLVER A CONGELAR. CONSERVAR A -18ºC"
         elif "congelado" in estado.lower():
             mencion = "UNA VEZ DESCONGELADO NO VOLVER A CONGELAR. CONSERVAR A -18ºC"
 
-        info = {
+        # 6. Preparar diccionario de datos para el PDF
+        info_etiqueta = {
             "nombre_completo": nombre_final,
             "nombre_cientifico": prod_row["NOMBRE_CIENTIFICO"],
             "ingredientes": limpiar_nan(prod_row["INGREDIENTES"]),
             "alergenos": alergeno_principal,
             "trazas": trazas_final,
             "mencion_conservacion": mencion,
-            "metodo": metodo, "lote": lote,
+            "metodo": metodo, 
+            "lote": lote,
             "zona": zona if zona != "Selecciona una opción" else None,
             "arte": arte if arte != "Selecciona una opción" else None,
             "f_cad": fecha_cad.strftime("%d/%m/%Y"),
-            "f_descong": date.today().strftime("%d/%m/%Y") if "descongelado" in estado.lower() else None,
+            "f_descong": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
             "expedidor": expedidor,
             "ovalo": df_exped[df_exped["EXPEDIDOR"] == expedidor]["OVALO_SANITARIO"].iloc[0]
         }
         
-        pdf_bytes = generar_pdf_a4(info, cantidad)
-        st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiquetas_{lote}.pdf")
+        # 7. Generar y Descargar
+        pdf_bytes = generar_pdf_a4(info_etiqueta, cantidad)
+        st.download_button(
+            label="📥 DESCARGAR PDF",
+            data=pdf_bytes,
+            file_name=f"etiqueta_{lote}.pdf",
+            mime="application/pdf"
+        )
+    else:
+        st.error("⚠️ Por favor, rellena todos los campos obligatorios antes de generar.")
