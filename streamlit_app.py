@@ -94,78 +94,90 @@ def generar_pdf_a4(datos, cantidad):
     curr_x, curr_y = mx, my
 
     for i in range(int(cantidad)):
-        # Dibujar el borde
+        # Marco exterior limpio
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # 1. Cabecera (Nombre y Estado)
-        pdf.set_fill_color(245, 245, 245)
-        pdf.rect(curr_x, curr_y, ancho_et, 18, 'F')
+        # BLOQUE 1: Denominación y Mención de Estado (Fijo)
         pdf.set_xy(curr_x, curr_y + 3)
-        pdf.set_font("Arial", 'B', 10)
-        pdf.multi_cell(ancho_et, 4.5, str(datos['nombre_completo']).upper(), align='C')
-        pdf.set_xy(curr_x, curr_y + 13)
+        pdf.set_font("Arial", 'B', 12)
+        pdf.multi_cell(ancho_et, 5, datos['nombre_base'].upper(), align='C')
+        
+        pdf.set_font("Arial", 'B', 9)
+        pdf.set_xy(curr_x, curr_y + 10)
+        pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
+        
         pdf.set_font("Arial", 'I', 8)
+        pdf.set_xy(curr_x, curr_y + 14)
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C')
 
-        # 2. Ingredientes y Alérgenos
-        pdf.rect(curr_x, curr_y + 18, ancho_et, 18)
-        y_int = curr_y + 19
+        # BLOQUE 2: Ingredientes, CONTIENE y Trazas (Posición Fija)
+        pdf.line(curr_x, curr_y + 20, curr_x + ancho_et, curr_y + 20)
+        pdf.set_xy(curr_x + 2, curr_y + 21)
+        
         if datos['ingredientes']:
             pdf.set_font("Arial", 'B', 7)
-            pdf.set_xy(curr_x + 2, y_int)
-            pdf.cell(20, 3, "INGREDIENTES:")
+            pdf.write(3, "INGREDIENTES: ")
             pdf.set_font("Arial", '', 7)
-            pdf.multi_cell(ancho_et - 22, 3, datos['ingredientes'])
-            y_int = pdf.get_y() + 1
-
+            pdf.write(3, datos['ingredientes'])
+        
+        # Alérgenos y Trazas juntos
+        pdf.set_xy(curr_x + 2, curr_y + 33)
         pdf.set_font("Arial", 'B', 8)
-        pdf.set_xy(curr_x + 2, y_int)
-        pdf.cell(ancho_et - 4, 3, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
+        pdf.cell(ancho_et, 4, f"CONTIENE: {str(datos['alergenos']).upper()}")
+        
         if datos['trazas']:
+            pdf.set_xy(curr_x + 2, curr_y + 37)
             pdf.set_font("Arial", 'I', 7)
-            pdf.set_x(curr_x + 2)
-            pdf.cell(ancho_et - 4, 3, f"Puede contener: {datos['trazas']}")
+            pdf.cell(ancho_et, 4, f"Puede contener: {datos['trazas']}")
 
-        # 3. Origen y Método
-        pdf.rect(curr_x, curr_y + 36, ancho_et, 16)
+        # BLOQUE 3: Origen y Método
+        pdf.rect(curr_x, curr_y + 42, ancho_et, 15)
         pdf.set_font("Arial", '', 8)
-        pdf.set_xy(curr_x + 5, curr_y + 38)
-        if datos['zona']: pdf.cell(0, 4, f"- ZONA: {datos['zona']}")
-        pdf.set_xy(curr_x + 5, curr_y + 42)
+        pdf.set_xy(curr_x + 3, curr_y + 43)
+        pdf.cell(0, 4, f"- ZONA: {datos['zona'] if datos['zona'] else 'N/A'}")
+        pdf.set_xy(curr_x + 3, curr_y + 47)
         pdf.cell(0, 4, f"- METODO: {datos['metodo']}")
-        pdf.set_xy(curr_x + 5, curr_y + 46)
-        if datos['arte']: pdf.cell(0, 4, f"- ARTE DE PESCA: {datos['arte']}")
+        pdf.set_xy(curr_x + 3, curr_y + 51)
+        pdf.cell(0, 4, f"- ARTE DE PESCA: {datos['arte'] if datos['arte'] else 'N/A'}")
 
-        # 4. Conservación (RD 1082/2025)
-        pdf.rect(curr_x, curr_y + 52, ancho_et, 12)
-        pdf.set_xy(curr_x + 2, curr_y + 54)
+        # BLOQUE 4: Conservación
+        pdf.rect(curr_x, curr_y + 57, ancho_et, 10)
+        pdf.set_xy(curr_x + 2, curr_y + 58)
         pdf.set_font("Arial", 'B', 7)
-        pdf.multi_cell(ancho_et - 4, 3.5, datos['mencion_conservacion'], align='C')
+        pdf.multi_cell(ancho_et - 4, 3.5, datos['mencion_conservacion'].upper(), align='C')
 
-        # 5. Trazabilidad y Fechas
-        pdf.rect(curr_x, curr_y + 64, ancho_et, 15)
-        pdf.set_xy(curr_x + 5, curr_y + 66)
+        # BLOQUE 5: Trazabilidad (Lote y Fechas)
+        pdf.rect(curr_x, curr_y + 68, ancho_et, 13)
+        pdf.set_xy(curr_x + 3, curr_y + 69)
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(0, 4, f"LOTE: {datos['lote']}")
         pdf.set_font("Arial", '', 8)
-        pdf.set_xy(curr_x + 5, curr_y + 70)
+        pdf.set_xy(curr_x + 3, curr_y + 75)
         f_desc_txt = f"   DESCONG: {datos['f_descong']}" if datos['f_descong'] else ""
         pdf.cell(0, 4, f"CAD: {datos['f_cad']}{f_desc_txt}")
 
-        # 6. Empresa y Óvalo Sanitario
-        pdf.rect(curr_x, curr_y + 79, ancho_et, 16)
+        # BLOQUE 6: Empresa y Óvalo
+        pdf.set_xy(curr_x + 2, curr_y + 82)
         pdf.set_font("Arial", '', 6)
-        pdf.set_xy(curr_x + 2, curr_y + 81)
-        pdf.multi_cell(ancho_et - 30, 3, f"{datos['expedidor']}\nCalle Laguna del Marquesado 43C, Nave 43C\n28021 Madrid")
+        pdf.multi_cell(ancho_et - 25, 2.8, f"{datos['expedidor']}\nCalle Laguna del Marquesado 43C, Nave 43C\n28021 Madrid")
         
-        pdf.ellipse(curr_x + 70, curr_y + 81, 20, 12)
-        pdf.set_xy(curr_x + 70, curr_y + 83)
+        pdf.ellipse(curr_x + 72, curr_y + 82, 18, 11)
+        pdf.set_xy(curr_x + 72, curr_y + 83.5)
         pdf.set_font("Arial", 'B', 6)
-        pdf.cell(20, 3, "ES", align='C', ln=True)
-        pdf.set_xy(curr_x + 70, curr_y + 85)
-        pdf.cell(20, 3, str(datos['ovalo']), align='C', ln=True)
-        pdf.set_xy(curr_x + 70, curr_y + 87)
-        pdf.cell(20, 3, "CE", align='C')
+        pdf.cell(18, 2.5, "ES", align='C', ln=True)
+        pdf.cell(18, 2.5, str(datos['ovalo']), align='C', ln=True)
+        pdf.cell(18, 2.5, "CE", align='C')
+
+        if (i + 1) % 2 == 0:
+            curr_x = mx
+            curr_y += alto_et + 2
+        else:
+            curr_x += ancho_et + 2
+        if (i + 1) % 6 == 0 and (i + 1) < cantidad:
+            pdf.add_page()
+            curr_x, curr_y = mx, my
+            
+    return pdf.output(dest='S').encode('latin-1')
 
         # Lógica para organizar 6 etiquetas por página (2 columnas x 3 filas)
         if (i + 1) % 2 == 0:
@@ -178,21 +190,31 @@ def generar_pdf_a4(datos, cantidad):
             curr_x, curr_y = mx, my
             
     return pdf.output(dest='S').encode('latin-1')
-st.divider()
-
 if st.button("🚀 GENERAR ETIQUETAS"):
-    # 1. Validación: Comprobar que no faltan campos obligatorios
-    campos_vacios = [nombre_base, forma, estado, metodo]
-    if "Selecciona una opción" in campos_vacios or not lote.strip():
-        st.warning("⚠️ ¡Atención! Rellena todos los campos obligatorios y el número de lote antes de continuar.")
+    # Comprobación de campos obligatorios
+    campos_obligatorios = {
+        "Producto": nombre_base,
+        "Transformación": forma,
+        "Estado": estado,
+        "Producción": metodo,
+        "Lote": lote
+    }
+    
+    faltan = [k for k, v in campos_obligatorios.items() if v == "Selecciona una opción" or not str(v).strip()]
+    
+    if faltan:
+        st.error(f"⚠️ No se puede generar la etiqueta. Faltan estos campos obligatorios: {', '.join(faltan)}")
     else:
-        # 2. Si todo está bien, procesamos los datos
         prod_row = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
-        gen = obtener_genero(nombre_base)
         
-        nombre_final = f"{nombre_base} {ajustar_genero(forma, gen)} {ajustar_genero(estado, gen)}"
-        
-        # Lógica de alérgenos y trazas
+        # Mención de conservación dinámica
+        mencion_cons = "CONSERVAR ENTRE 0 Y 4ºC"
+        if "DESCONGELADO" in estado.upper():
+            mencion_cons = "PRODUCTO DESCONGELADO. NO VOLVER A CONGELAR. CONSERVAR A -18ºC"
+        elif "CONGELADO" in estado.upper():
+            mencion_cons = "UNA VEZ DESCONGELADO NO VOLVER A CONGELAR. CONSERVAR A -18ºC"
+
+        # Lookup de trazas
         alergeno_p = limpiar_nan(prod_row["ALERGENOS"])
         trazas_f = ""
         if alergeno_p:
@@ -201,40 +223,24 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             if not match.empty:
                 trazas_f = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
 
-        # Mención de conservación
-        mencion = "CONSERVAR ENTRE 0 Y 4ºC"
-        if "DESCONGELADO" in estado.upper():
-            mencion = "PRODUCTO DESCONGELADO. NO VOLVER A CONGELAR. CONSERVAR A -18ºC"
-        elif "CONGELADO" in estado.upper():
-            mencion = "UNA VEZ DESCONGELADO NO VOLVER A CONGELAR. CONSERVAR A -18ºC"
-
         info_etiqueta = {
-            "nombre_completo": nombre_final,
+            "nombre_base": f"{nombre_base} {forma}",
+            "mencion_estado": estado,
             "nombre_cientifico": prod_row["NOMBRE_CIENTIFICO"],
             "ingredientes": limpiar_nan(prod_row["INGREDIENTES"]),
             "alergenos": alergeno_p,
             "trazas": trazas_f,
-            "mencion_conservacion": mencion,
+            "mencion_conservacion": mencion_cons,
             "metodo": metodo, 
             "lote": lote,
-            "zona": zona if zona != "Selecciona una opción" else None,
-            "arte": arte if arte != "Selecciona una opción" else None,
+            "zona": zona,
+            "arte": arte,
             "f_cad": fecha_cad.strftime("%d/%m/%Y"),
             "f_descong": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
             "expedidor": expedidor_auto,
             "ovalo": ovalo_auto
         }
 
-        # 3. Generar el PDF
         pdf_bytes = generar_pdf_a4(info_etiqueta, cantidad)
-
-        # 4. Mostrar mensajes de éxito y botón de descarga
-        st.success("✅ ¡Etiqueta creada correctamente! Ya puedes descargarla aquí debajo:")
-        
-        st.download_button(
-            label="📥 DESCARGAR PDF",
-            data=pdf_bytes,
-            file_name=f"etiqueta_{lote}.pdf",
-            mime="application/pdf"
-        )
-
+        st.success("✅ Etiqueta creada correctamente.")
+        st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
