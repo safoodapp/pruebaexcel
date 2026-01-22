@@ -90,27 +90,29 @@ def generar_pdf_a4(datos, cantidad):
     pdf.add_page()
     
     ancho_et, alto_et = 95, 95
+    # Márgenes y separación aumentada (5mm)
     mx, my = 7, 10
+    sep = 5 
     curr_x, curr_y = mx, my
 
     for i in range(int(cantidad)):
-        # Marco exterior limpio
+        # Marco exterior
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # BLOQUE 1: Denominación y Mención de Estado (Fijo)
+        # BLOQUE 1: Denominación y Mención de Estado
         pdf.set_xy(curr_x, curr_y + 3)
         pdf.set_font("Arial", 'B', 12)
         pdf.multi_cell(ancho_et, 5, datos['nombre_base'].upper(), align='C')
         
         pdf.set_font("Arial", 'B', 9)
-        pdf.set_xy(curr_x, curr_y + 10)
+        pdf.set_xy(curr_x, curr_y + 11)
         pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
         
         pdf.set_font("Arial", 'I', 8)
-        pdf.set_xy(curr_x, curr_y + 14)
+        pdf.set_xy(curr_x, curr_y + 15)
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C')
 
-        # BLOQUE 2: Ingredientes, CONTIENE y Trazas (Posición Fija)
+        # BLOQUE 2: Ingredientes y Alérgenos
         pdf.line(curr_x, curr_y + 20, curr_x + ancho_et, curr_y + 20)
         pdf.set_xy(curr_x + 2, curr_y + 21)
         
@@ -120,7 +122,6 @@ def generar_pdf_a4(datos, cantidad):
             pdf.set_font("Arial", '', 7)
             pdf.write(3, datos['ingredientes'])
         
-        # Alérgenos y Trazas juntos
         pdf.set_xy(curr_x + 2, curr_y + 33)
         pdf.set_font("Arial", 'B', 8)
         pdf.cell(ancho_et, 4, f"CONTIENE: {str(datos['alergenos']).upper()}")
@@ -130,15 +131,15 @@ def generar_pdf_a4(datos, cantidad):
             pdf.set_font("Arial", 'I', 7)
             pdf.cell(ancho_et, 4, f"Puede contener: {datos['trazas']}")
 
-        # BLOQUE 3: Origen y Método
+        # BLOQUE 3: Origen y Método (SIN RAYITAS)
         pdf.rect(curr_x, curr_y + 42, ancho_et, 15)
         pdf.set_font("Arial", '', 8)
         pdf.set_xy(curr_x + 3, curr_y + 43)
-        pdf.cell(0, 4, f"- ZONA: {datos['zona'] if datos['zona'] else 'N/A'}")
+        pdf.cell(0, 4, f"ZONA: {datos['zona'] if datos['zona'] else 'N/A'}")
         pdf.set_xy(curr_x + 3, curr_y + 47)
-        pdf.cell(0, 4, f"- METODO: {datos['metodo']}")
+        pdf.cell(0, 4, f"MÉTODO: {datos['metodo']}")
         pdf.set_xy(curr_x + 3, curr_y + 51)
-        pdf.cell(0, 4, f"- ARTE DE PESCA: {datos['arte'] if datos['arte'] else 'N/A'}")
+        pdf.cell(0, 4, f"ARTE DE PESCA: {datos['arte'] if datos['arte'] else 'N/A'}")
 
         # BLOQUE 4: Conservación
         pdf.rect(curr_x, curr_y + 57, ancho_et, 10)
@@ -165,14 +166,17 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_xy(curr_x + 72, curr_y + 83.5)
         pdf.set_font("Arial", 'B', 6)
         pdf.cell(18, 2.5, "ES", align='C', ln=True)
+        pdf.set_x(curr_x + 72)
         pdf.cell(18, 2.5, str(datos['ovalo']), align='C', ln=True)
+        pdf.set_x(curr_x + 72)
         pdf.cell(18, 2.5, "CE", align='C')
-# Lógica para organizar 6 etiquetas por página (2 columnas x 3 filas)
+
+        # Salto de etiqueta con separación de 5mm
         if (i + 1) % 2 == 0:
             curr_x = mx
-            curr_y += alto_et + 2
+            curr_y += alto_et + sep
         else:
-            curr_x += ancho_et + 2
+            curr_x += ancho_et + sep
             
         if (i + 1) % 6 == 0 and (i + 1) < cantidad:
             pdf.add_page()
@@ -233,4 +237,5 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         pdf_bytes = generar_pdf_a4(info_etiqueta, cantidad)
         st.success("✅ Etiqueta creada correctamente.")
         st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
+
 
