@@ -94,39 +94,61 @@ def generar_pdf(datos, cantidad):
     return pdf.output(dest='S').encode('latin-1')
 
 st.divider()
+
 if st.button("🚀 GENERAR ETIQUETAS"):
-    if "Selecciona una opción" not in [nombre_base, forma, estado, metodo]:
+    # 1. Validación: Comprobar que no faltan campos obligatorios
+    campos_vacios = [nombre_base, forma, estado, metodo]
+    if "Selecciona una opción" in campos_vacios or not lote.strip():
+        st.warning("⚠️ ¡Atención! Rellena todos los campos obligatorios y el número de lote antes de continuar.")
+    else:
+        # 2. Si todo está bien, procesamos los datos
         prod_row = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
         gen = obtener_genero(nombre_base)
         
-        # Concordancia y Nombre
         nombre_final = f"{nombre_base} {ajustar_genero(forma, gen)} {ajustar_genero(estado, gen)}"
         
-        # Alérgenos y Trazas (Lookup)
+        # Lógica de alérgenos y trazas
         alergeno_p = limpiar_nan(prod_row["ALERGENOS"])
         trazas_f = ""
         if alergeno_p:
             mask = df_trazas_config["ALERGENO"].astype(str).str.strip().str.upper() == alergeno_p.strip().upper()
             match = df_trazas_config[mask]
             if not match.empty:
-                trazas_val = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
-                # Evitar que la traza repita el alérgeno principal
-                trazas_f = ", ".join([t for t in trazas_val.split(", ") if t.strip().upper() != alergeno_p.strip().upper()])
+                trazas_f = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
 
-        # Conservación
+        # Mención de conservación
         mencion = "CONSERVAR ENTRE 0 Y 4ºC"
         if "DESCONGELADO" in estado.upper():
             mencion = "PRODUCTO DESCONGELADO. NO VOLVER A CONGELAR. CONSERVAR A -18ºC"
         elif "CONGELADO" in estado.upper():
             mencion = "UNA VEZ DESCONGELADO NO VOLVER A CONGELAR. CONSERVAR A -18ºC"
 
-        info = {
-            "nombre_completo": nombre_final, "nombre_cientifico": prod_row["NOMBRE_CIENTIFICO"],
-            "ingredientes": limpiar_nan(prod_row["INGREDIENTES"]), "alergenos": alergeno_p, "trazas": trazas_f,
-            "mencion_conservacion": mencion, "metodo": metodo, "lote": lote, "zona": zona, "arte": arte,
-            "f_cad": fecha_cad.strftime("%d/%m/%Y"), "expedidor": expedidor_auto, "ovalo": ovalo_auto,
-            "f_descong": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None
+        info_etiqueta = {
+            "nombre_completo": nombre_final,
+            "nombre_cientifico": prod_row["NOMBRE_CIENTIFICO"],
+            "ingredientes": limpiar_nan(prod_row["INGREDIENTES"]),
+            "alergenos": alergeno_p,
+            "trazas": trazas_f,
+            "mencion_conservacion": mencion,
+            "metodo": metodo, 
+            "lote": lote,
+            "zona": zona if zona != "Selecciona una opción" else None,
+            "arte": arte if arte != "Selecciona una opción" else None,
+            "f_cad": fecha_cad.strftime("%d/%m/%Y"),
+            "f_descong": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
+            "expedidor": expedidor_auto,
+            "ovalo": ovalo_auto
         }
+
+        # 3. Generar el PDF
+        pdf_bytes = generar_pdf_a4(info_etiqueta, cantidad)
+
+        # 4. Mostrar mensajes de éxito y botón de descarga
+        st.success("✅ ¡Etiqueta creada correctamente! Ya puedes descargarla aquí debajo:")
         
-        # Aquí llamarías a la función de dibujo PDF que ya tienes definida
-        st.success("Etiqueta generada correctamente")
+        st.download_button(
+            label="📥 DESCARGAR PDF",
+            data=pdf_bytes,
+            file_name=f"etiqueta_{lote}.pdf",
+            mime="application/pdf"
+        )
