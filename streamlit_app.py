@@ -180,24 +180,33 @@ def generar_pdf_a4(datos, cantidad):
         f_desc = f"  DESCONG: {datos['f_des']}" if datos['f_des'] else ""
         pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}", ln=True)
 
-        # 7. PIE (Expedidor y Óvalo)
-        y_dinamica = pdf.get_y() + 2
+        # --- 7. PIE (EXPEDIDOR Y ÓVALO) ---
+        # En lugar de pos_pie, usamos y_dinamica que ya existe en tu código
+        y_dinamica = 85  # Forzamos la posición al final de la etiqueta para que siempre esté abajo
+        
+        pdf.line(curr_x, y_dinamica - 1, curr_x + ancho_et, y_dinamica - 1)
         pdf.set_xy(curr_x + 2, y_dinamica)
-        pdf.line(curr_x, pos_pie - 1, curr_x + ancho_et, pos_pie - 1)
-        pdf.set_xy(curr_x + 2, pos_pie)
         pdf.set_font("Arial", '', 6) 
-        # Reducimos ancho del expedidor para que no "empuje" al óvalo
+        
+        # Usamos la clave correcta: expedidor_info
         pdf.multi_cell(60, 2.5, f"{datos['expedidor_info']}", align='L')
 
-        pdf.ellipse(curr_x + 64, pos_pie - 1, 17, 9)
-        pdf.set_xy(curr_x + 64, pos_pie); pdf.set_font("Arial", 'B', 6); pdf.cell(17, 2, "ES", align='C', ln=True)
+        # ÓVALO SANITARIO
+        pdf.ellipse(curr_x + 64, y_dinamica - 1, 17, 9)
+        pdf.set_xy(curr_x + 64, y_dinamica); pdf.set_font("Arial", 'B', 6); pdf.cell(17, 2, "ES", align='C', ln=True)
         pdf.set_x(curr_x + 64); pdf.cell(17, 2, str(datos['ovalo']), align='C', ln=True)
         pdf.set_x(curr_x + 64); pdf.cell(17, 2, "CE", align='C')
 
-        # Control de posición para la siguiente etiqueta
-        if (i + 1) % 2 == 0: curr_x = mx; curr_y += alto_et + sep
-        else: curr_x += ancho_et + sep
-        if (i + 1) % 6 == 0 and (i + 1) < cantidad: pdf.add_page(); curr_x, curr_y = mx, my
+        # --- CONTROL DE POSICIÓN PARA SIGUIENTE ETIQUETA ---
+        if (i + 1) % 2 == 0: 
+            curr_x = mx
+            curr_y += alto_et + sep
+        else: 
+            curr_x += ancho_et + sep
+            
+        if (i + 1) % 6 == 0 and (i + 1) < cantidad: 
+            pdf.add_page()
+            curr_x, curr_y = mx, my
             
     return pdf.output(dest='S').encode('latin-1')
 
@@ -254,6 +263,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
