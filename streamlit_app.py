@@ -181,7 +181,7 @@ def generar_pdf_a4(datos, cantidad):
         pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}", ln=True)
 
         # 7. PIE (Expedidor y Óvalo)
-       y_dinamica = pdf.get_y() + 2
+        y_dinamica = pdf.get_y() + 2
         pdf.set_xy(curr_x + 2, y_dinamica)
         pdf.line(curr_x, pos_pie - 1, curr_x + ancho_et, pos_pie - 1)
         pdf.set_xy(curr_x + 2, pos_pie)
@@ -254,6 +254,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
