@@ -142,7 +142,7 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_xy(curr_x + 2, curr_y + 83)
         pdf.set_font("Arial", '', 6) 
         # Usamos la variable 'expedidor' que viene de tu hoja de Google Sheets
-        pdf.multi_cell(60, 2.5, f"{datos['expedidor']}", align='L')
+        pdf.multi_cell(60, 2.5, f"{datos['expedidor_info']}", align='L')
         
         # 5. ALÉRGENOS Y TRAZAS (POSICIÓN FIJA)
         pdf.set_xy(curr_x + 3, curr_y + 36)
@@ -252,6 +252,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
