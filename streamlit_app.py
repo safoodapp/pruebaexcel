@@ -232,7 +232,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             "arte": arte if arte else "N/A",
             "f_cad": fecha_cad.strftime("%d/%m/%Y"), 
             "f_des": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
-            "expedidor_info": df_exped.iloc[0]["EXPEDIDOR"], 
+           "expedidor_info": df_exped.iloc[0]["EXPEDIDOR"],
             "ovalo": df_exped.iloc[0]["OVALO_SANITARIO"]
         }, cantidad)
         
@@ -243,6 +243,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
