@@ -93,6 +93,10 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
 # =========================================================
 # 4. EDICIÓN DE ETIQUETA
 # =========================================================
+def generar_pdf_a4(datos, cantidad):
+    pdf = FPDF(orientation='P', unit='mm', format='A4')
+    pdf.set_auto_page_break(auto=False)
+    pdf.add_page()
     ancho_et, alto_et = 76, 102
     mx, my, sep = 15, 10, 5 
     curr_x, curr_y = mx, my
@@ -246,6 +250,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
