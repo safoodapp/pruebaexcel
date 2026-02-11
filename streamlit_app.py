@@ -99,7 +99,7 @@ def generar_pdf_a4(datos, cantidad):
     ancho_et, alto_et = 85, 95
     mx, my, sep = 10, 10, 5 
     curr_x, curr_y = mx, my
-    ancho_util = ancho_et - 6 # Margen de 3mm a cada lado
+    ancho_util = ancho_et - 6
 
     for i in range(int(cantidad)):
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
@@ -114,35 +114,40 @@ def generar_pdf_a4(datos, cantidad):
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
 
         pdf.set_font("Arial", '', 10) 
-        pdf.set_y(pdf.get_y() + 2) # Espacio después del científico
+        pdf.set_y(pdf.get_y() + 2) 
         pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
 
-        # 2. BLOQUE INGREDIENTES (ALINEACIÓN PERFECTA)
+        # 2. BLOQUE DINÁMICO DE INGREDIENTES
         pdf.line(curr_x, curr_y + 21, curr_x + ancho_et, curr_y + 21)
-        if datos['ingredientes']:
-            pdf.set_xy(curr_x + 3, curr_y + 22)
+        y_dinamica = curr_y + 22 
+
+        if datos['ingredientes'] and str(datos['ingredientes']).strip().lower() != "nan" and str(datos['ingredientes']).strip() != "":
+            pdf.set_xy(curr_x + 3, y_dinamica)
             long = len(datos['ingredientes'])
-            # Fuente un pelín más grande como pediste
             f_size = 7.5 if long < 130 else 6.5
+            
+            # Título en Negrita
+            pdf.set_font("Arial", 'B', f_size)
+            pdf.write(3.5, "INGREDIENTES: ")
+            
+            # Texto en Normal
             pdf.set_font("Arial", '', f_size)
-            
-            # Unimos todo en una sola variable para que multi_cell lo alinee solo
-            texto_completo = f"INGREDIENTES: {datos['ingredientes']}"
-            
-            # multi_cell con interlineado de 3.5 para que no esté apretado
-            pdf.multi_cell(ancho_util, 3.5, texto_completo, align='L')
-        
-        # 3. ALÉRGENOS (POSICIÓN FIJA BAJO LOS INGREDIENTES)
-        pdf.set_xy(curr_x + 3, curr_y + 36)
+            pdf.multi_cell(79, 3.5, datos['ingredientes'], align='L')
+            y_dinamica = pdf.get_y() + 1.5
+        else:
+            y_dinamica = curr_y + 23
+
+        # 3. ALÉRGENOS (SE PEGAN A LOS INGREDIENTES)
+        pdf.set_xy(curr_x + 3, y_dinamica)
         pdf.set_font("Arial", 'B', 8)
-        pdf.cell(ancho_util, 4, f"CONTIENE: {str(datos['alergenos']).upper()}")
+        pdf.cell(ancho_util, 4, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
         
         if datos['trazas']:
-            pdf.set_xy(curr_x + 3, curr_y + 40)
+            pdf.set_x(curr_x + 3)
             pdf.set_font("Arial", 'I', 7)
-            pdf.cell(ancho_util, 4, f"Puede contener: {datos['trazas']}")
+            pdf.cell(ancho_util, 3, f"Puede contener: {datos['trazas']}", ln=True)
 
-        # 4. DATOS DE PESCA
+        # 4. DATOS DE PESCA (MANTENEMOS COORDENADAS PARA CUADRO FIJO)
         pdf.rect(curr_x, curr_y + 45, ancho_et, 15)
         pdf.set_font("Arial", 'B', 7.5)
         pdf.set_xy(curr_x + 3, curr_y + 46); pdf.write(4, "ZONA DE CAPTURA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['zona']}")
@@ -162,7 +167,7 @@ def generar_pdf_a4(datos, cantidad):
         f_desc = f"  DESCONG: {datos['f_des']}" if datos['f_des'] else ""
         pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}")
 
-        # 7. EXPEDIDOR Y ÓVALO (POSICIÓN FINAL)
+        # 7. EXPEDIDOR Y ÓVALO (PARTE INFERIOR)
         pdf.set_xy(curr_x + 2, curr_y + 85)
         pdf.set_font("Arial", '', 6) 
         pdf.multi_cell(60, 2.5, f"{datos['expedidor_info']}", align='L')
@@ -231,6 +236,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
