@@ -120,27 +120,29 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_y(pdf.get_y() + 2) # Salto de línea después del científico
         pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
 
-        # 4. BLOQUE INGREDIENTES (SOLUCIÓN AL DESBORDAMIENTO)
+       # 4. BLOQUE INGREDIENTES (REESCRITO PARA EVITAR DESBORDAMIENTO)
         pdf.line(curr_x, curr_y + 21, curr_x + ancho_et, curr_y + 21)
         if datos['ingredientes']:
-            # Reducimos el ancho útil para dejar márgenes de seguridad (3mm a cada lado)
-            ancho_util = ancho_et - 6 
             pdf.set_xy(curr_x + 3, curr_y + 22)
             
-            # Ajuste automático del tamaño de letra según la longitud del texto
+            # Ajuste de fuente dinámico
             longitud = len(datos['ingredientes'])
-            if longitud > 200:
-                f_size = 5
-            elif longitud > 120:
-                f_size = 6
-            else:
-                f_size = 7
-                
-            pdf.set_font("Arial", 'B', f_size)
-            pdf.write(3, "INGREDIENTES: ")
+            f_size = 7 if longitud < 120 else (6 if longitud < 200 else 5.5)
             pdf.set_font("Arial", '', f_size)
-            # multi_cell con ancho_util fuerza el salto de línea antes de chocar con el borde
-            pdf.multi_cell(ancho_util, 3, datos['ingredientes'], align='L')
+            
+            # Unimos el título con el texto para que multi_cell controle todo el bloque
+            texto_completo = f"INGREDIENTES: {datos['ingredientes']}"
+            
+            # El 79 es el ancho máximo (85mm total - margins). No se saldrá.
+            pdf.multi_cell(79, 3, texto_completo, align='L')
+
+        # ... (aquí irían alérgenos, pesca, etc.) ...
+
+        # 7. EXPEDIDOR (RECUPERADO DEL EXCEL)
+        pdf.set_xy(curr_x + 2, curr_y + 83)
+        pdf.set_font("Arial", '', 6) 
+        # Usamos la variable 'expedidor' que viene de tu hoja de Google Sheets
+        pdf.multi_cell(60, 2.5, f"{datos['expedidor']}", align='L')
         
         # 5. ALÉRGENOS Y TRAZAS (POSICIÓN FIJA)
         pdf.set_xy(curr_x + 3, curr_y + 36)
@@ -172,15 +174,18 @@ def generar_pdf_a4(datos, cantidad):
         f_desc = f"  DESCONG: {datos['f_des']}" if datos['f_des'] else ""
         pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}")
 
-        # 9. EMPRESA Y ÓVALO SANITARIO
-        pdf.set_xy(curr_x + 2, curr_y + 85)
-        pdf.set_font("Arial", '', 6.5)
-        pdf.multi_cell(ancho_et - 25, 2.8, f"PESCADOS Y MARISCOS SANTIAGO Y SANTIAGO S.L.\n28021 Madrid")
+        # 9. EXPEDIDOR (Cogido del Excel y con más espacio)
+        pdf.set_xy(curr_x + 2, curr_y + 83)
+        pdf.set_font("Arial", '', 6) # Letra pequeña para que quepa la dirección del Excel
+        # Aumentamos el ancho a ancho_et - 20 para que no choque con el óvalo
+        pdf.multi_cell(ancho_et - 20, 2.5, f"{datos['expedidor']}", align='L')
 
-        pdf.ellipse(curr_x + 64, curr_y + 84, 17, 9)
-        pdf.set_xy(curr_x + 64, curr_y + 85); pdf.set_font("Arial", 'B', 6); pdf.cell(17, 2, "ES", align='C', ln=True)
-        pdf.set_x(curr_x + 64); pdf.cell(17, 2, str(datos['ovalo']), align='C', ln=True)
-        pdf.set_x(curr_x + 64); pdf.cell(17, 2, "CE", align='C')
+        # ÓVALO (Lo mantenemos a la derecha)
+        pdf.ellipse(curr_x + 66, curr_y + 83, 16, 9)
+        pdf.set_xy(curr_x + 66, curr_y + 84); pdf.set_font("Arial", 'B', 5.5)
+        pdf.cell(16, 2, "ES", align='C', ln=True)
+        pdf.set_x(curr_x + 66); pdf.cell(16, 2, str(datos['ovalo']), align='C', ln=True)
+        pdf.set_x(curr_x + 66); pdf.cell(16, 2, "CE", align='C')
 
         # Lógica para posicionar la siguiente etiqueta en el folio A4
         if (i + 1) % 2 == 0:
@@ -232,6 +237,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         
         st.success("✅ Generada con éxito.")
         st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
+
 
 
 
