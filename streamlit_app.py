@@ -96,47 +96,61 @@ def generar_pdf_a4(datos, cantidad):
     pdf = FPDF()
     pdf.add_page()
     
+    # Dimensiones de la etiqueta compacta
     ancho_et, alto_et = 85, 95
     mx, my, sep = 10, 10, 5 
     curr_x, curr_y = mx, my
 
     for i in range(int(cantidad)):
+        # Dibujo del marco de la etiqueta
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # 1. NOMBRE COMERCIAL
+        # 1. NOMBRE COMERCIAL (MAYÚSCULAS Y NEGRITA)
         pdf.set_xy(curr_x, curr_y + 4)
         pdf.set_font("Arial", 'B', 11)
         pdf.multi_cell(ancho_et, 5, datos['nombre_base'].upper(), align='C')
         
-        # 2. NOMBRE CIENTÍFICO (Sin espacio arriba)
+        # 2. NOMBRE CIENTÍFICO (ITÁLICA, JUSTO DEBAJO)
         pdf.set_font("Arial", 'I', 9)
         pdf.set_xy(curr_x, pdf.get_y()) 
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
 
-        # 3. PRODUCTO [ESTADO] (Sin negrita y con espacio ANTES)
-        pdf.set_font("Arial", '', 10) # Sin la 'B' de Bold
-        pdf.set_y(pdf.get_y() + 2)    # Salto de espacio después del nombre científico
+        # 3. PRODUCTO [ESTADO] (NORMAL, CON ESPACIO ANTES)
+        pdf.set_font("Arial", '', 10) 
+        pdf.set_y(pdf.get_y() + 2) # Salto de línea después del científico
         pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
 
-        # 4. INGREDIENTES (Caja inteligente para que no se salga)
+        # 4. BLOQUE INGREDIENTES (SOLUCIÓN AL DESBORDAMIENTO)
         pdf.line(curr_x, curr_y + 21, curr_x + ancho_et, curr_y + 21)
         if datos['ingredientes']:
+            # Reducimos el ancho útil para dejar márgenes de seguridad (3mm a cada lado)
+            ancho_util = ancho_et - 6 
             pdf.set_xy(curr_x + 3, curr_y + 22)
-            f_size = 7 if len(datos['ingredientes']) < 140 else 5.5
+            
+            # Ajuste automático del tamaño de letra según la longitud del texto
+            longitud = len(datos['ingredientes'])
+            if longitud > 200:
+                f_size = 5
+            elif longitud > 120:
+                f_size = 6
+            else:
+                f_size = 7
+                
             pdf.set_font("Arial", 'B', f_size)
             pdf.write(3, "INGREDIENTES: ")
             pdf.set_font("Arial", '', f_size)
-            pdf.multi_cell(79, 3, datos['ingredientes'], align='L')
+            # multi_cell con ancho_util fuerza el salto de línea antes de chocar con el borde
+            pdf.multi_cell(ancho_util, 3, datos['ingredientes'], align='L')
         
-        # 5. CONTIENE Y TRAZAS
+        # 5. ALÉRGENOS Y TRAZAS (POSICIÓN FIJA)
         pdf.set_xy(curr_x + 3, curr_y + 36)
         pdf.set_font("Arial", 'B', 8)
-        pdf.cell(ancho_et - 6, 4, f"CONTIENE: {str(datos['alergenos']).upper()}")
+        pdf.cell(ancho_util, 4, f"CONTIENE: {str(datos['alergenos']).upper()}")
         
         if datos['trazas']:
             pdf.set_xy(curr_x + 3, curr_y + 40)
             pdf.set_font("Arial", 'I', 7)
-            pdf.cell(ancho_et - 6, 4, f"Puede contener: {datos['trazas']}")
+            pdf.cell(ancho_util, 4, f"Puede contener: {datos['trazas']}")
 
         # 6. DATOS DE PESCA
         pdf.rect(curr_x, curr_y + 45, ancho_et, 15)
@@ -151,14 +165,14 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_font("Arial", 'B', 6.5)
         pdf.multi_cell(ancho_et - 4, 2.8, datos['mencion_conservacion'], align='C')
 
-        # 8. LOTE Y FECHAS (F. Caducidad)
+        # 8. LOTE Y FECHAS
         pdf.rect(curr_x, curr_y + 71, ancho_et, 13)
         pdf.set_xy(curr_x + 3, curr_y + 72); pdf.set_font("Arial", 'B', 11); pdf.cell(0, 5, f"LOTE: {datos['lote']}")
         pdf.set_xy(curr_x + 3, curr_y + 78); pdf.set_font("Arial", 'B', 8.5)
         f_desc = f"  DESCONG: {datos['f_des']}" if datos['f_des'] else ""
         pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}")
 
-        # 9. EXPEDIDOR Y ÓVALO
+        # 9. EMPRESA Y ÓVALO SANITARIO
         pdf.set_xy(curr_x + 2, curr_y + 85)
         pdf.set_font("Arial", '', 6.5)
         pdf.multi_cell(ancho_et - 25, 2.8, f"PESCADOS Y MARISCOS SANTIAGO Y SANTIAGO S.L.\n28021 Madrid")
@@ -168,10 +182,15 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_x(curr_x + 64); pdf.cell(17, 2, str(datos['ovalo']), align='C', ln=True)
         pdf.set_x(curr_x + 64); pdf.cell(17, 2, "CE", align='C')
 
-        # Posicionamiento
-        if (i + 1) % 2 == 0: curr_x = mx; curr_y += alto_et + sep
-        else: curr_x += ancho_et + sep
-        if (i + 1) % 6 == 0 and (i + 1) < cantidad: pdf.add_page(); curr_x, curr_y = mx, my
+        # Lógica para posicionar la siguiente etiqueta en el folio A4
+        if (i + 1) % 2 == 0:
+            curr_x = mx
+            curr_y += alto_et + sep
+        else:
+            curr_x += ancho_et + sep
+        if (i + 1) % 6 == 0 and (i + 1) < cantidad:
+            pdf.add_page()
+            curr_x, curr_y = mx, my
             
     return pdf.output(dest='S').encode('latin-1')
 
@@ -213,6 +232,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         
         st.success("✅ Generada con éxito.")
         st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
+
 
 
 
