@@ -103,69 +103,72 @@ def generar_pdf_a4(datos, cantidad):
     for i in range(int(cantidad)):
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # 1. Nombres
-        pdf.set_xy(curr_x, curr_y + 3)
+        # 1. NOMBRE COMERCIAL
+        pdf.set_xy(curr_x, curr_y + 4)
         pdf.set_font("Arial", 'B', 11)
-        pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
+        pdf.multi_cell(ancho_et, 5, datos['nombre_base'].upper(), align='C')
         
+        # 2. NOMBRE CIENTÍFICO (Sin espacio arriba)
         pdf.set_font("Arial", 'I', 9)
-        pdf.set_xy(curr_x, curr_y + 11)
-        pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C')
+        pdf.set_xy(curr_x, pdf.get_y()) 
+        pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
 
-        pdf.set_font("Arial", 'B', 10)
-        pdf.set_xy(curr_x, curr_y + 15)
+        # 3. PRODUCTO [ESTADO] (Sin negrita y con espacio ANTES)
+        pdf.set_font("Arial", '', 10) # Sin la 'B' de Bold
+        pdf.set_y(pdf.get_y() + 2)    # Salto de espacio después del nombre científico
         pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
 
-        # 2. Ingredientes (Con auto-ajuste de fuente para no pisar lo de abajo)
-        pdf.line(curr_x, curr_y + 20, curr_x + ancho_et, curr_y + 20)
+        # 4. INGREDIENTES (Caja inteligente para que no se salga)
+        pdf.line(curr_x, curr_y + 21, curr_x + ancho_et, curr_y + 21)
         if datos['ingredientes']:
-            pdf.set_xy(curr_x + 2, curr_y + 21)
+            pdf.set_xy(curr_x + 3, curr_y + 22)
             f_size = 7 if len(datos['ingredientes']) < 140 else 5.5
             pdf.set_font("Arial", 'B', f_size)
             pdf.write(3, "INGREDIENTES: ")
             pdf.set_font("Arial", '', f_size)
-            pdf.multi_cell(ancho_et - 4, 2.8, datos['ingredientes'], align='L')
+            pdf.multi_cell(79, 3, datos['ingredientes'], align='L')
         
-        # 3. Alérgenos y Trazas (Posición Fija para evitar solapamiento)
-        pdf.set_xy(curr_x + 2, curr_y + 35)
+        # 5. CONTIENE Y TRAZAS
+        pdf.set_xy(curr_x + 3, curr_y + 36)
         pdf.set_font("Arial", 'B', 8)
-        pdf.cell(ancho_et - 4, 4, f"CONTIENE: {str(datos['alergenos']).upper()}")
+        pdf.cell(ancho_et - 6, 4, f"CONTIENE: {str(datos['alergenos']).upper()}")
         
         if datos['trazas']:
-            pdf.set_xy(curr_x + 2, curr_y + 39)
+            pdf.set_xy(curr_x + 3, curr_y + 40)
             pdf.set_font("Arial", 'I', 7)
-            pdf.cell(ancho_et - 4, 3, f"Puede contener: {datos['trazas']}")
+            pdf.cell(ancho_et - 6, 4, f"Puede contener: {datos['trazas']}")
 
-        # 4. Datos de Pesca
-        pdf.rect(curr_x, curr_y + 44, ancho_et, 14)
+        # 6. DATOS DE PESCA
+        pdf.rect(curr_x, curr_y + 45, ancho_et, 15)
         pdf.set_font("Arial", 'B', 7.5)
-        pdf.set_xy(curr_x + 2, curr_y + 45); pdf.write(4, "ZONA DE CAPTURA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['zona']}")
-        pdf.set_xy(curr_x + 2, curr_y + 49); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "MÉTODO DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['metodo']}")
-        pdf.set_xy(curr_x + 2, curr_y + 53); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "ARTE DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['arte']}")
+        pdf.set_xy(curr_x + 3, curr_y + 46); pdf.write(4, "ZONA DE CAPTURA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['zona']}")
+        pdf.set_xy(curr_x + 3, curr_y + 50); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "MÉTODO DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['metodo']}")
+        pdf.set_xy(curr_x + 3, curr_y + 54); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "ARTE DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['arte']}")
 
-        # 5. Conservación
-        pdf.rect(curr_x, curr_y + 59, ancho_et, 8)
-        pdf.set_xy(curr_x + 2, curr_y + 60)
-        pdf.set_font("Arial", 'B', 6)
-        pdf.multi_cell(ancho_et - 4, 2.5, datos['mencion_conservacion'], align='C')
+        # 7. CONSERVACIÓN
+        pdf.rect(curr_x, curr_y + 61, ancho_et, 9)
+        pdf.set_xy(curr_x + 2, curr_y + 62)
+        pdf.set_font("Arial", 'B', 6.5)
+        pdf.multi_cell(ancho_et - 4, 2.8, datos['mencion_conservacion'], align='C')
 
-        # 6. Trazabilidad
-        pdf.rect(curr_x, curr_y + 68, ancho_et, 13)
-        pdf.set_xy(curr_x + 2, curr_y + 69); pdf.set_font("Arial", 'B', 11); pdf.cell(0, 5, f"LOTE: {datos['lote']}")
-        pdf.set_xy(curr_x + 2, curr_y + 75); pdf.set_font("Arial", 'B', 9)
-        f_desc = f" DESCONG: {datos['f_des']}" if datos['f_des'] else ""
-        pdf.cell(0, 5, f"CAD: {datos['f_cad']}{f_desc}")
+        # 8. LOTE Y FECHAS (F. Caducidad)
+        pdf.rect(curr_x, curr_y + 71, ancho_et, 13)
+        pdf.set_xy(curr_x + 3, curr_y + 72); pdf.set_font("Arial", 'B', 11); pdf.cell(0, 5, f"LOTE: {datos['lote']}")
+        pdf.set_xy(curr_x + 3, curr_y + 78); pdf.set_font("Arial", 'B', 8.5)
+        f_desc = f"  DESCONG: {datos['f_des']}" if datos['f_des'] else ""
+        pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}")
 
-        # 7. Expedidor y Óvalo (SUBIDOS PARA QUE SE VEAN)
-        pdf.set_xy(curr_x + 2, curr_y + 83)
+        # 9. EXPEDIDOR Y ÓVALO
+        pdf.set_xy(curr_x + 2, curr_y + 85)
         pdf.set_font("Arial", '', 6.5)
-        pdf.multi_cell(ancho_et - 22, 2.8, f"PESCADOS Y MARISCOS SANTIAGO Y SANTIAGO S.L.\n28021 Madrid", align='L')
+        pdf.multi_cell(ancho_et - 25, 2.8, f"PESCADOS Y MARISCOS SANTIAGO Y SANTIAGO S.L.\n28021 Madrid")
 
-        pdf.ellipse(curr_x + 65, curr_y + 83, 16, 9)
-        pdf.set_xy(curr_x + 65, curr_y + 84); pdf.set_font("Arial", 'B', 5.5); pdf.cell(16, 2, "ES", align='C', ln=True)
-        pdf.set_x(curr_x + 65); pdf.cell(16, 2, str(datos['ovalo']), align='C', ln=True)
-        pdf.set_x(curr_x + 65); pdf.cell(16, 2, "CE", align='C')
+        pdf.ellipse(curr_x + 64, curr_y + 84, 17, 9)
+        pdf.set_xy(curr_x + 64, curr_y + 85); pdf.set_font("Arial", 'B', 6); pdf.cell(17, 2, "ES", align='C', ln=True)
+        pdf.set_x(curr_x + 64); pdf.cell(17, 2, str(datos['ovalo']), align='C', ln=True)
+        pdf.set_x(curr_x + 64); pdf.cell(17, 2, "CE", align='C')
 
+        # Posicionamiento
         if (i + 1) % 2 == 0: curr_x = mx; curr_y += alto_et + sep
         else: curr_x += ancho_et + sep
         if (i + 1) % 6 == 0 and (i + 1) < cantidad: pdf.add_page(); curr_x, curr_y = mx, my
@@ -210,6 +213,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         
         st.success("✅ Generada con éxito.")
         st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
+
 
 
 
