@@ -102,7 +102,7 @@ def generar_pdf_a4(datos, cantidad):
     ancho_et, alto_et = 102, 76
     mx, my, sep = 5, 10, 5 
     curr_x, curr_y = mx, my
-    ancho_util = ancho_et - 8 # Margen de seguridad lateral
+    ancho_util = ancho_et - 8 
 
     for i in range(int(cantidad)):
         # 0. RECUADRO EXTERIOR
@@ -110,7 +110,6 @@ def generar_pdf_a4(datos, cantidad):
         
         # 1. CABECERA
         pdf.set_xy(curr_x, curr_y + 4)
-        
         pdf.set_font("Arial", 'B', 10)
         pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
         
@@ -121,23 +120,19 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
+        # --- SOLUCIÓN ERROR y_linea1 ---
+        # Calculamos y_linea1 dinámicamente según dónde terminó la cabecera
+        y_linea1 = pdf.get_y() + 1 
+        pdf.set_xy(curr_x + 4, y_linea1)
 
         # 2. INGREDIENTES Y ALÉRGENOS
-        pdf.set_xy(curr_x + 4, y_linea1 + 1.5)
-
         if datos['ingredientes'] and str(datos['ingredientes']).strip():
-
-            # Solo el título en negrita
             pdf.set_font("Arial", 'B', 7.5)
             pdf.cell(22, 3.5, "INGREDIENTES:", ln=0)
-
-            # Texto normal en la misma línea
             pdf.set_font("Arial", '', 7.5)
             pdf.multi_cell(ancho_util - 22, 3.5, f" {datos['ingredientes']}", align='L')
-
         else:
-            pdf.set_y(pdf.get_y() + 2)
-
+            pdf.ln(2) # Espacio si no hay ingredientes
         
         # Alérgenos (siempre debajo de ingredientes)
         pdf.set_x(curr_x + 4)
@@ -149,7 +144,7 @@ def generar_pdf_a4(datos, cantidad):
             pdf.set_font("Arial", 'I', 7.5)
             pdf.cell(ancho_util, 3.5, f"Puede contener trazas de: {datos['trazas']}", ln=True)
 
-        # 3. DATOS DE PESCA (Anclado a posición media)
+        # 3. DATOS DE PESCA (Posición fija para consistencia visual)
         y_linea2 = curr_y + 45
         pdf.line(curr_x, y_linea2, curr_x + ancho_et, y_linea2)
         pdf.set_xy(curr_x, y_linea2 + 1)
@@ -164,38 +159,33 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_font("Arial", 'B', 6.5)
         pdf.multi_cell(ancho_et - 4, 3, datos['mencion_conservacion'], align='C')
 
-       # 5. LOTE Y FECHAS
+        # 5. LOTE Y FECHAS
         y_linea4 = curr_y + 58
         pdf.line(curr_x, y_linea4, curr_x + ancho_et, y_linea4)
         pdf.set_xy(curr_x + 4, y_linea4 + 1.5)
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(45, 5, f"LOTE: {datos['lote']}")
-        pdf.cell(45, 5, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
+        pdf.cell(46, 5, f"LOTE: {datos['lote']}")
+        pdf.cell(46, 5, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
 
-        # Mostrar fecha de descongelación si existe
         if datos.get("f_des"):
             pdf.set_x(curr_x + 4)
             pdf.set_font("Arial", '', 8)
             pdf.cell(ancho_et - 8, 4, f"F. DESCONGELACIÓN: {datos['f_des']}", ln=True)
 
-
-        # 6. EXPEDIDOR Y ÓVALO (Pie de página inamovible)
+        # 6. EXPEDIDOR Y ÓVALO
         y_linea5 = curr_y + 67
         pdf.line(curr_x, y_linea5, curr_x + ancho_et, y_linea5)
-        
         pdf.set_xy(curr_x + 3, y_linea5 + 1.5)
         pdf.set_font("Arial", '', 6.5)
-        # Multi_cell limitada para no pisar el óvalo
-        pdf.multi_cell(62, 3, datos['expedidor_info'], align='L')
+        pdf.multi_cell(62, 2.8, datos['expedidor_info'], align='L')
 
-        # ÓVALO SANITARIO AJUSTADO
-        pdf.ellipse(curr_x + 70, y_linea5 + 1.5, 24, 8)
-        pdf.set_xy(curr_x + 70, y_linea5 + 2.8)
+        # ÓVALO SANITARIO
+        pdf.ellipse(curr_x + 72, y_linea5 + 1.5, 22, 7)
+        pdf.set_xy(curr_x + 72, y_linea5 + 2.8)
         pdf.set_font("Arial", 'B', 6.5)
-        pdf.cell(24, 4, f"ES {datos['ovalo']} CE", align='C')
+        pdf.cell(22, 4, f"ES {datos['ovalo']} CE", align='C')
 
-
-        # --- Lógica de rejilla 2x3 ---
+        # --- Lógica de rejilla ---
         if (i + 1) % 2 == 0:
             curr_x = mx
             curr_y += alto_et + sep
@@ -258,6 +248,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
