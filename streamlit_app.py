@@ -123,24 +123,23 @@ def generar_pdf_a4(datos, cantidad):
         pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
         y_dinamica += 1
 
-        # 2. INGREDIENTES (REDISEÑO TOTAL PARA EVITAR SALIDAS)
+      # 2. INGREDIENTES (REDISEÑO FINAL SIN HUECOS NI SALIDAS)
         if datos['ingredientes'] and str(datos['ingredientes']).strip().lower() != "nan" and str(datos['ingredientes']).strip() != "":
             pdf.set_xy(curr_x + 3, y_dinamica)
             long = len(datos['ingredientes'])
             f_size = 7.5 if long < 120 else 6.5
             
-            # TRUCO: Escribimos "INGREDIENTES:" y el texto en celdas separadas 
-            # pero coordinadas para que el salto sea perfecto
+            # Ponemos negrita para TODO el bloque (es la única forma de que no se descuadre)
             pdf.set_font("Arial", 'B', f_size)
-            pdf.write(3.5, "INGREDIENTES: ")
             
-            pdf.set_font("Arial", '', f_size)
-            # El multi_cell empieza justo después del write
-            # Usamos un ancho algo menor para que el primer renglón no sufra
-            pdf.multi_cell(ancho_util_texto - 20, 3.5, datos['ingredientes'], align='L')
+            # Al usar multi_cell con el ancho total (79), el texto se ajusta solo
+            # y no deja líneas vacías ni se sale por la derecha.
+            pdf.multi_cell(79, 3.5, f"INGREDIENTES: {datos['ingredientes']}", align='L')
+            
             y_dinamica = pdf.get_y() + 1.5
         else:
-            y_dinamica += 2 # Espacio mínimo si no hay ingredientes
+            # Si no hay nada, y_dinamica NO se mueve mucho para que no haya huecazo
+            y_dinamica += 0
 
         # 3. ALÉRGENOS (Pegados al texto anterior)
         pdf.set_xy(curr_x + 3, y_dinamica)
@@ -182,7 +181,8 @@ def generar_pdf_a4(datos, cantidad):
         pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}", ln=True)
 
         # 7. PIE (Expedidor y Óvalo)
-        pos_pie = curr_y + 85
+       y_dinamica = pdf.get_y() + 2
+        pdf.set_xy(curr_x + 2, y_dinamica)
         pdf.line(curr_x, pos_pie - 1, curr_x + ancho_et, pos_pie - 1)
         pdf.set_xy(curr_x + 2, pos_pie)
         pdf.set_font("Arial", '', 6) 
@@ -254,6 +254,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
