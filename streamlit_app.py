@@ -200,15 +200,17 @@ def generar_pdf_a4(datos, cantidad):
     return pdf.output(dest='S').encode('latin-1')
 
 # =========================================================
-# 5. BOTÓN GENERAR
+# 5. BOTÓN GENERAR (ALINEACIÓN Y VARIABLES CORREGIDAS)
 # =========================================================
 if st.button("🚀 GENERAR ETIQUETAS"):
     if nombre_base == "Selecciona una opción" or not lote:
-        st.error("⚠️ Falta Producto o Lote.")
+        st.error("⚠️ Falta algún campo sin rellenar, revisalo.")
     else:
+        # Extraemos la fila del producto seleccionado
         prod_row = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
         alergeno_p = limpiar_nan(prod_row["ALERGENOS"])
         
+        # Lógica de Trazas
         trazas_f = ""
         if alergeno_p:
             mask = df_trazas_config["ALERGENO"].astype(str).str.strip().str.upper() == alergeno_p.strip().upper()
@@ -216,6 +218,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             if not match.empty:
                 trazas_f = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
 
+        # Lógica de Conservación
         if "CONGELADO" in estado.upper():
             mencion_cons = "CONSERVAR A -18ºC. UNA VEZ DESCONGELADO NO VOLVER A CONGELAR. COCINAR COMPLETAMENTE ANTES DE CONSUMIR."
         elif "DESCONGELADO" in estado.upper():
@@ -223,7 +226,8 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         else:
             mencion_cons = "CONSERVAR ENTRE 0-4ºC. COCINAR COMPLETAMENTE ANTES DE CONSUMIR."
 
-       pdf_bytes = generar_pdf_a4({
+        # GENERACIÓN DEL PDF (Variables sincronizadas con la función)
+        pdf_bytes = generar_pdf_a4({
             "nombre_base": f"{nombre_base} {forma if forma != 'Selecciona una opción' else ''}",
             "mencion_estado": estado,
             "nombre_cientifico": prod_row["NOMBRE_CIENTIFICO"],
@@ -233,19 +237,21 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             "mencion_conservacion": mencion_cons,
             "metodo": metodo, 
             "lote": lote, 
-            "zona": zona, 
-            "arte": arte,
+            "zona": zona if zona else "N/A", 
+            "arte": arte if arte else "N/A",
             "f_cad": fecha_cad.strftime("%d/%m/%Y"), 
             "f_des": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
-            # Aquí leemos la columna exacta de tu imagen:
             "expedidor_info": df_exped.iloc[0]["EXPEDIDOR"], 
             "ovalo": df_exped.iloc[0]["OVALO_SANITARIO"]
         }, cantidad)
         
-        st.success("✅ Generada con éxito.")
-        st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
-
-
+        st.success("✅ ¡Etiqueta generada con éxito!")
+        st.download_button(
+            label="📥 DESCARGAR PDF",
+            data=pdf_bytes,
+            file_name=f"etiqueta_{lote}.pdf",
+            mime="application/pdf"
+        )
 
 
 
