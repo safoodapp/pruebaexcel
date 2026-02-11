@@ -92,20 +92,23 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
 # =========================================================
 # 4. FUNCIÓN PDF (BLINDADA CONTRA DESBORDAMIENTOS)
 # =========================================================
+# =========================================================
+# 4. FUNCIÓN PDF (CORREGIDA: TRAZAS Y ORDEN DE INGREDIENTES)
+# =========================================================
 def generar_pdf_a4(datos, cantidad):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
+    pdf.set_auto_page_break(auto=False)
     pdf.add_page()
     
-    # Medidas de la etiqueta y la hoja
     ancho_et, alto_et = 102, 76
-    mx, my, sep = 5, 10, 5 # Márgenes y separación
+    mx, my, sep = 5, 10, 5 
     curr_x, curr_y = mx, my
 
     for i in range(int(cantidad)):
-        # 1. DIBUJAR RECUADRO DE LA ETIQUETA
+        # 1. RECUADRO
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # 2. CABECERA: NOMBRE Y ESTADO
+        # 2. CABECERA
         pdf.set_xy(curr_x, curr_y + 4)
         pdf.set_font("Arial", 'B', 12)
         pdf.multi_cell(ancho_et, 5, datos['nombre_base'].upper(), align='C')
@@ -118,46 +121,54 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_x(curr_x)
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # 3. SECCIÓN INGREDIENTES (ZONA FIJA)
+        # 3. SECCIÓN INGREDIENTES Y ALÉRGENOS (MEJORADO)
         pdf.line(curr_x + 2, curr_y + 22, curr_x + ancho_et - 2, curr_y + 22)
-        pdf.set_xy(curr_x + 3, curr_y + 23)
+        y_ingredientes = curr_y + 23
+        pdf.set_xy(curr_x + 3, y_ingredientes)
         
-        txt_ing = f"INGREDIENTES: {datos['ingredientes']}" if datos['ingredientes'] else "INGREDIENTES: No contiene."
-        long = len(txt_ing)
-        f_size_ing = 7.5 if long < 150 else 6.5
-        
-        pdf.set_font("Arial", 'B', f_size_ing)
-        pdf.write(3.5, "INGREDIENTES: ")
-        pdf.set_font("Arial", '', f_size_ing)
-        # Usamos 94mm de ancho para que el texto NO se salga
-        pdf.multi_cell(94, 3.5, str(datos['ingredientes']), align='L')
-        
-        # Alérgenos
+        # Lógica de Ingredientes
+        pdf.set_font("Arial", 'B', 8)
+        if datos['ingredientes'] and str(datos['ingredientes']).strip() != "":
+            pdf.write(4, "INGREDIENTES: ")
+            pdf.set_font("Arial", '', 8)
+            pdf.multi_cell(95, 4, str(datos['ingredientes']), align='L')
+        else:
+            pdf.cell(95, 4, "INGREDIENTES: No contiene.", ln=True)
+
+        # Lógica de Alérgenos y Trazas (Lo que faltaba)
         pdf.set_x(curr_x + 3)
         pdf.set_font("Arial", 'B', 8)
-        pdf.multi_cell(94, 4, f"CONTIENE: {str(datos['alergenos']).upper()}", align='L')
+        pdf.write(4, f"CONTIENE: {str(datos['alergenos']).upper()}")
+        pdf.ln(4)
+        
+        if datos['trazas']:
+            pdf.set_x(curr_x + 3)
+            pdf.set_font("Arial", 'I', 8) # Itálica para las trazas
+            pdf.multi_cell(95, 4, f"Puede contener: {str(datos['trazas']).upper()}", align='L')
 
         # 4. DATOS DE PESCA
         pdf.line(curr_x + 2, curr_y + 48, curr_x + ancho_et - 2, curr_y + 48)
         pdf.set_xy(curr_x + 3, curr_y + 49)
-        pdf.set_font("Arial", 'B', 7.5)
-        pdf.write(4, "ZONA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['zona']}  ")
-        pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "MÉTODO: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['metodo']}  ")
-        pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "ARTE: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['arte']}\n")
+        pdf.set_font("Arial", 'B', 8)
+        pdf.write(4, "ZONA: "); pdf.set_font("Arial", '', 8); pdf.write(4, f"{datos['zona']}  ")
+        pdf.set_font("Arial", 'B', 8); pdf.write(4, "MÉTODO: "); pdf.set_font("Arial", '', 8); pdf.write(4, f"{datos['metodo']}  ")
+        pdf.set_font("Arial", 'B', 8); pdf.write(4, "ARTE: "); pdf.set_font("Arial", '', 8); pdf.write(4, f"{datos['arte']}\n")
         
         # 5. CONSERVACIÓN
         pdf.set_x(curr_x + 3)
-        pdf.set_font("Arial", 'B', 6.5)
-        pdf.multi_cell(ancho_et - 6, 3, datos['mencion_conservacion'], align='C')
+        pdf.set_font("Arial", 'B', 7)
+        pdf.multi_cell(ancho_et - 6, 3.5, datos['mencion_conservacion'], align='C')
 
-        # 6. LOTE Y CADUCIDAD
+        # 6. LOTE Y CADUCIDAD (ORDENADO)
         pdf.line(curr_x + 2, curr_y + 62, curr_x + ancho_et - 2, curr_y + 62)
         pdf.set_xy(curr_x + 3, curr_y + 63)
         pdf.set_font("Arial", 'B', 11)
-        pdf.cell(50, 6, f"LOTE: {datos['lote']}")
-        pdf.set_font("Arial", 'B', 9)
-        f_desc = f"  DESC: {datos['f_des']}" if datos['f_des'] else ""
-        pdf.cell(45, 6, f"F. CAD: {datos['f_cad']}{f_desc}", align='R', ln=True)
+        pdf.cell(50, 7, f"LOTE: {datos['lote']}")
+        
+        pdf.set_font("Arial", 'B', 10)
+        fecha_texto = f"F. CAD: {datos['f_cad']}"
+        if datos['f_des']: fecha_texto += f" (D: {datos['f_des']})"
+        pdf.cell(46, 7, fecha_texto, align='R', ln=True)
 
         # 7. EXPEDIDOR Y ÓVALO
         pdf.line(curr_x + 2, curr_y + 70, curr_x + ancho_et - 2, curr_y + 70)
@@ -165,20 +176,18 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_font("Arial", '', 6)
         pdf.multi_cell(75, 2.2, f"{datos['expedidor_info']}", align='L')
 
-        pdf.ellipse(curr_x + 82, curr_y + 70.5, 16, 4.5)
-        pdf.set_xy(curr_x + 82, curr_y + 70.8)
-        pdf.set_font("Arial", 'B', 5)
-        pdf.cell(16, 2, f"ES {datos['ovalo']} CE", align='C')
+        pdf.ellipse(curr_x + 80, curr_y + 70.8, 18, 4.8)
+        pdf.set_xy(curr_x + 80, curr_y + 71.5)
+        pdf.set_font("Arial", 'B', 5.5)
+        pdf.cell(18, 3, f"ES {datos['ovalo']} CE", align='C')
 
-        # --- LÓGICA DE POSICIONAMIENTO EN A4 ---
-        # Caben 2 etiquetas a lo ancho. Al ser de 76mm de alto, caben 3 filas (Total 6 etiquetas por hoja)
+        # Lógica de posición para 2x3 etiquetas
         if (i + 1) % 2 == 0:
             curr_x = mx
             curr_y += alto_et + sep
         else:
             curr_x += ancho_et + sep
             
-        # Si llegamos al final de la hoja (3 filas x 2 etiquetas = 6)
         if (i + 1) % 6 == 0 and (i + 1) < cantidad:
             pdf.add_page()
             curr_x, curr_y = mx, my
@@ -238,6 +247,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
