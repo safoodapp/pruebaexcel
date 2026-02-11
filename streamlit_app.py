@@ -90,13 +90,12 @@ with c8:
 
 cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p10")
 
-def generar_pdf_a4(datos, cantidad):
-    pdf = FPDF(orientation='P', unit='mm', format='A4')
-    pdf.set_auto_page_break(auto=False)
-    pdf.add_page()
-    
-    ancho_et, alto_et = 76, 102
-    mx, my, sep = 5, 10, 5 
+# =========================================================
+# 4. EDICIÓN DE ETIQUETA
+# =========================================================
+
+ancho_et, alto_et = 76, 102
+    mx, my, sep = 15, 10, 5 
     curr_x, curr_y = mx, my
     ancho_util = ancho_et - 8 
 
@@ -104,103 +103,101 @@ def generar_pdf_a4(datos, cantidad):
         # 0. RECUADRO EXTERIOR
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # 1. CABECERA (Posición Fija)
+        # 1. CABECERA (Fija arriba)
         pdf.set_xy(curr_x, curr_y + 4)
-        pdf.set_font("Arial", 'B', 11)
+        pdf.set_font("Arial", 'B', 10)
         pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
         
-        pdf.set_font("Arial", 'I', 8.5)
+        pdf.set_font("Arial", 'I', 8)
         pdf.set_x(curr_x)
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
         
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # LÍNEA 1: SEPARADOR CABECERA (Fijo)
-        y_sep1 = curr_y + 20
+        # LÍNEA 1: SEPARADOR CABECERA (Fijo en 22mm)
+        y_sep1 = curr_y + 22
         pdf.line(curr_x, y_sep1, curr_x + ancho_et, y_sep1)
 
-        # 2. INGREDIENTES Y ALÉRGENOS (Letra un poco más pequeña para asegurar espacio)
-        pdf.set_xy(curr_x + 4, y_sep1 + 1.5)
-        if datos['ingredientes'] and str(datos['ingredientes']).strip():
-            pdf.set_font("Arial", 'B', 7)
-            pdf.cell(20, 3.5, "INGREDIENTES:", ln=0)
-            pdf.set_font("Arial", '', 6.5) # Justificado para que quede cuadrado
-            pdf.multi_cell(ancho_util - 20, 3.2, f" {datos['ingredientes']}", align='J')
+        # 2. INGREDIENTES Y ALÉRGENOS (Mucho más espacio ahora)
+        pdf.set_xy(curr_x + 4, y_sep1 + 2)
+        pdf.set_font("Arial", 'B', 7)
+        pdf.cell(20, 3.5, "INGREDIENTES:", ln=0)
+        pdf.set_font("Arial", '', 6.5)
+        # multi_cell ahora puede crecer sin romper nada hasta los 50mm
+        pdf.multi_cell(ancho_util - 20, 3.2, f" {datos['ingredientes']}", align='J')
         
         pdf.set_x(curr_x + 4)
-        pdf.set_font("Arial", 'B', 8)
-        pdf.cell(ancho_util, 4, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
+        pdf.set_font("Arial", 'B', 7.5)
+        pdf.cell(ancho_util, 4.5, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
         
         if datos['trazas']:
             pdf.set_x(curr_x + 4)
-            pdf.set_font("Arial", 'I', 7)
+            pdf.set_font("Arial", 'I', 6.5)
             pdf.cell(ancho_util, 3.5, f"Puede contener trazas de: {datos['trazas']}", ln=True)
 
-        # 3. DATOS DE PESCA (Anclado fijo en 44mm)
-        y_sep2 = curr_y + 44
+        # 3. DATOS DE PESCA (Anclado fijo en 52mm)
+        y_sep2 = curr_y + 52
         pdf.line(curr_x, y_sep2, curr_x + ancho_et, y_sep2)
-        pdf.set_xy(curr_x + 4, y_sep2 + 1)
+        pdf.set_xy(curr_x + 4, y_sep2 + 1.5)
         pdf.set_font("Arial", 'B', 7.5)
-        pdf.cell(ancho_et, 3.8, f"ZONA DE CAPTURA: {datos['zona']}", ln=True)
+        pdf.cell(ancho_et, 4, f"ZONA DE CAPTURA: {datos['zona']}", ln=True)
         pdf.set_x(curr_x + 4)
-        pdf.cell(ancho_et, 3.8, f"MÉTODO DE PESCA: {datos['metodo']}", ln=True)
+        pdf.cell(ancho_et, 4, f"MÉTODO DE PESCA: {datos['metodo']}", ln=True)
         pdf.set_x(curr_x + 4)
-        pdf.cell(ancho_et, 3.8, f"ARTE DE PESCA: {datos['arte']}", ln=True)
+        pdf.cell(ancho_et, 4, f"ARTE DE PESCA: {datos['arte']}", ln=True)
 
-        # 4. CONSERVACIÓN (Anclado fijo en 56mm)
-        y_sep3 = curr_y + 56
+        # 4. CONSERVACIÓN (Anclado fijo en 68mm)
+        y_sep3 = curr_y + 68
         pdf.line(curr_x, y_sep3, curr_x + ancho_et, y_sep3)
-        pdf.set_xy(curr_x + 2, y_sep3 + 1)
+        pdf.set_xy(curr_x + 2, y_sep3 + 1.5)
         pdf.set_font("Arial", 'B', 6.5)
-        pdf.multi_cell(ancho_et - 4, 3, datos['mencion_conservacion'], align='C')
+        pdf.multi_cell(ancho_et - 4, 3.2, datos['mencion_conservacion'], align='C')
 
-        # 5. LOTE Y FECHAS (Anclado fijo en 64mm)
-        y_sep4 = curr_y + 64
+        # 5. LOTE Y FECHAS (Anclado fijo en 80mm)
+        y_sep4 = curr_y + 80
         pdf.line(curr_x, y_sep4, curr_x + ancho_et, y_sep4)
-        pdf.set_xy(curr_x + 4, y_sep4 + 1.5)
+        pdf.set_xy(curr_x + 4, y_sep4 + 2)
         pdf.set_font("Arial", 'B', 11)
-        pdf.cell(45, 5, f"LOTE: {datos['lote']}")
+        pdf.cell(35, 6, f"LOTE: {datos['lote']}")
         pdf.set_font("Arial", 'B', 9)
-        pdf.cell(45, 5, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
+        pdf.cell(33, 6, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
         
         if datos.get("f_des"):
-            pdf.set_xy(curr_x + 4, y_sep4 + 6)
-            pdf.set_font("Arial", 'B', 7.5)
-            pdf.cell(ancho_util, 3.5, f"F. DESCONGELACIÓN: {datos['f_des']}", ln=True)
+            pdf.set_x(curr_x + 4)
+            pdf.set_font("Arial", 'B', 8)
+            pdf.cell(ancho_util, 4, f"F. DESCONGELACIÓN: {datos['f_des']}", ln=True)
 
-        # 6. PIE Y ÓVALO (Anclado fijo en 71mm)
-        y_sep5 = curr_y + 69
+        # 6. PIE Y ÓVALO (Anclado fijo en 92mm)
+        y_sep5 = curr_y + 92
         pdf.line(curr_x, y_sep5, curr_x + ancho_et, y_sep5)
         
         # Expedidor
-        pdf.set_xy(curr_x + 3, y_sep5 + 1)
+        pdf.set_xy(curr_x + 3, y_sep5 + 1.5)
         pdf.set_font("Arial", '', 6)
-        pdf.multi_cell(65, 2.2, datos['expedidor_info'], align='C')
+        pdf.multi_cell(45, 2.5, datos['expedidor_info'], align='L')
 
-        # Óvalo en 3 niveles
-        x_oval, y_oval = curr_x + 75, y_sep5 + 0.5
-        pdf.ellipse(x_oval, y_oval, 22, 4) # Elipse más plana para que quepa
+        # Óvalo (3 niveles mejorado)
+        x_oval, y_oval = curr_x + 50, y_sep5 + 1
+        pdf.ellipse(x_oval, y_oval, 22, 8)
         pdf.set_font("Arial", 'B', 5.5)
-        pdf.set_xy(x_oval, y_oval + 0.5)
-        pdf.cell(22, 1.5, "ES", align='C', ln=True)
+        pdf.set_xy(x_oval, y_oval + 1)
+        pdf.cell(22, 2, "ES", align='C', ln=True)
         pdf.set_x(x_oval)
-        pdf.cell(22, 1.5, datos['ovalo'], align='C', ln=True)
+        pdf.cell(22, 2, datos['ovalo'], align='C', ln=True)
         pdf.set_x(x_oval)
-        pdf.cell(22, 1.5, "CE", align='C')
+        pdf.cell(22, 2, "CE", align='C')
 
-        # --- Lógica de rejilla 2x3 ---
+        # --- Lógica de rejilla 2x2 para el nuevo tamaño ---
         if (i + 1) % 2 == 0:
             curr_x = mx
             curr_y += alto_et + sep
         else:
             curr_x += ancho_et + sep
             
-        if (i + 1) % 6 == 0 and (i + 1) < cantidad:
+        if (i + 1) % 4 == 0 and (i + 1) < cantidad:
             pdf.add_page()
             curr_x, curr_y = mx, my
-            
-    return pdf.output(dest='S').encode('latin-1')
 # =========================================================
 # 5. BOTÓN GENERAR
 # =========================================================
@@ -252,6 +249,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
