@@ -96,6 +96,9 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
 # =========================================================
 # 4. FUNCIÓN PDF CORREGIDA (ALINEACIÓN DINÁMICA Y PIE FIJO)
 # =========================================================
+# =========================================================
+# 4. FUNCIÓN PDF CORREGIDA (ÓVALO VERTICAL Y ALINEACIÓN)
+# =========================================================
 def generar_pdf_a4(datos, cantidad):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False)
@@ -104,90 +107,94 @@ def generar_pdf_a4(datos, cantidad):
     ancho_et, alto_et = 102, 76
     mx, my, sep = 5, 10, 5 
     curr_x, curr_y = mx, my
-    ancho_util = ancho_et - 8 # Margen de seguridad lateral
+    ancho_util = ancho_et - 8
 
     for i in range(int(cantidad)):
         # 0. RECUADRO EXTERIOR
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
         # 1. CABECERA
-        pdf.set_xy(curr_x, curr_y + 3)
-        pdf.set_font("Arial", 'B', 11)
-        pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
+        pdf.set_xy(curr_x, curr_y + 4)
+        pdf.set_font("Arial", 'B', 12)
+        pdf.multi_cell(ancho_et, 5, datos['nombre_base'].upper(), align='C')
         
         pdf.set_font("Arial", 'I', 9)
         pdf.set_x(curr_x)
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
 
-        pdf.set_font("Arial", 'B', 10) 
+        pdf.set_font("Arial", 'B', 11) 
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # LÍNEA 1: Separador tras cabecera
-        y_linea1 = curr_y + 22
+        # LÍNEA 1: Separador principal
+        y_linea1 = curr_y + 24
         pdf.line(curr_x, y_linea1, curr_x + ancho_et, y_linea1)
 
-        # 2. INGREDIENTES Y ALÉRGENOS (Bloque unificado para evitar descuadres)
-        pdf.set_xy(curr_x + 4, y_linea1 + 1.5)
+        # 2. INGREDIENTES Y ALÉRGENOS (Unificados sin saltos)
+        pdf.set_xy(curr_x + 4, y_linea1 + 2)
         
         if datos['ingredientes'] and str(datos['ingredientes']).strip():
-            pdf.set_font("Arial", 'B', 7.5)
-            # Metemos "INGREDIENTES" dentro de la misma cadena para que no salte de línea
-            texto_ing = f"INGREDIENTES: {datos['ingredientes']}"
-            pdf.multi_cell(ancho_util, 3.5, texto_ing, align='L')
-        else:
-            # Si no hay ingredientes, dejamos espacio para que no quede pegado
-            pdf.set_y(pdf.get_y() + 2)
+            # Usamos una sola fuente para evitar saltos de línea entre título y contenido
+            pdf.set_font("Arial", 'B', 8)
+            texto_completo = f"INGREDIENTES: {datos['ingredientes']}"
+            pdf.multi_cell(ancho_util, 4, texto_completo, align='L')
         
-        # Alérgenos (siempre debajo de ingredientes)
+        # Alérgenos (Siempre debajo de ingredientes o de la línea)
         pdf.set_x(curr_x + 4)
-        pdf.set_font("Arial", 'B', 8.5)
-        pdf.cell(ancho_util, 4.5, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
+        pdf.set_font("Arial", 'B', 9)
+        pdf.cell(ancho_util, 5, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
         
         if datos['trazas']:
             pdf.set_x(curr_x + 4)
-            pdf.set_font("Arial", 'I', 7.5)
-            pdf.cell(ancho_util, 3.5, f"Puede contener trazas de: {datos['trazas']}", ln=True)
+            pdf.set_font("Arial", 'I', 8)
+            pdf.cell(ancho_util, 4, f"Puede contener trazas de: {datos['trazas']}", ln=True)
 
-        # 3. DATOS DE PESCA (Anclado a posición media)
-        y_linea2 = curr_y + 45
+        # 3. DATOS DE PESCA (Línea centrada)
+        y_linea2 = curr_y + 46
         pdf.line(curr_x, y_linea2, curr_x + ancho_et, y_linea2)
         pdf.set_xy(curr_x, y_linea2 + 1)
-        pdf.set_font("Arial", 'B', 7.5)
+        pdf.set_font("Arial", 'B', 8)
         texto_pesca = f"ZONA: {datos['zona']}  |  MÉTODO: {datos['metodo']}  |  ARTE: {datos['arte']}"
-        pdf.cell(ancho_et, 4, texto_pesca, align='C', ln=True)
+        pdf.cell(ancho_et, 5, texto_pesca, align='C', ln=True)
 
         # 4. CONSERVACIÓN
         y_linea3 = pdf.get_y() + 1
         pdf.line(curr_x, y_linea3, curr_x + ancho_et, y_linea3)
         pdf.set_xy(curr_x + 2, y_linea3 + 1)
-        pdf.set_font("Arial", 'B', 6.5)
-        pdf.multi_cell(ancho_et - 4, 3, datos['mencion_conservacion'], align='C')
+        pdf.set_font("Arial", 'B', 7)
+        pdf.multi_cell(ancho_et - 4, 3.5, datos['mencion_conservacion'], align='C')
 
-        # 5. LOTE Y FECHAS (Anclado a posición inferior)
+        # 5. LOTE Y FECHAS (Anclado al fondo del bloque central)
         y_linea4 = curr_y + 58
         pdf.line(curr_x, y_linea4, curr_x + ancho_et, y_linea4)
-        pdf.set_xy(curr_x + 4, y_linea4 + 1.5)
-        pdf.set_font("Arial", 'B', 11)
-        pdf.cell(45, 6, f"LOTE: {datos['lote']}")
+        pdf.set_xy(curr_x + 4, y_linea4 + 1)
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(45, 7, f"LOTE: {datos['lote']}")
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(45, 6, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
+        pdf.cell(45, 7, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
 
-        # 6. EXPEDIDOR Y ÓVALO (Pie de página inamovible)
-        y_linea5 = curr_y + 67
+        # 6. PIE DE PÁGINA (Expedidor y Óvalo Vertical)
+        y_linea5 = curr_y + 66
         pdf.line(curr_x, y_linea5, curr_x + ancho_et, y_linea5)
         
+        # Datos empresa
         pdf.set_xy(curr_x + 3, y_linea5 + 1.5)
         pdf.set_font("Arial", '', 6.5)
-        # Multi_cell limitada para no pisar el óvalo
-        pdf.multi_cell(62, 3, datos['expedidor_info'], align='L')
+        pdf.multi_cell(65, 3, datos['expedidor_info'], align='L')
 
-        # ÓVALO SANITARIO CORREGIDO
-        pdf.ellipse(curr_x + 72, y_linea5 + 1.5, 22, 7)
-        pdf.set_xy(curr_x + 72, y_linea5 + 2.2)
-        pdf.set_font("Arial", 'B', 6)
-        pdf.cell(22, 5, f"ES {datos['ovalo']} CE", align='C')
+        # ÓVALO SANITARIO VERTICAL (ES / REGISTRO / CE)
+        x_ovalo = curr_x + 75
+        y_ovalo = y_linea5 + 1
+        pdf.ellipse(x_ovalo, y_ovalo, 18, 8) # Óvalo más alto
+        
+        pdf.set_font("Arial", 'B', 5.5)
+        pdf.set_xy(x_ovalo, y_ovalo + 0.5)
+        pdf.cell(18, 2.5, "ES", align='C', ln=True)
+        pdf.set_x(x_ovalo)
+        pdf.cell(18, 2.5, str(datos['ovalo']), align='C', ln=True)
+        pdf.set_x(x_ovalo)
+        pdf.cell(18, 2.5, "CE", align='C')
 
-        # --- Lógica de rejilla 2x3 ---
+        # Salto de etiqueta
         if (i + 1) % 2 == 0:
             curr_x = mx
             curr_y += alto_et + sep
@@ -250,6 +257,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
