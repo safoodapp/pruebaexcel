@@ -110,27 +110,29 @@ def generar_pdf_a4(datos, cantidad):
         
         # 1. CABECERA
         pdf.set_xy(curr_x, curr_y + 4)
-        pdf.set_font("Arial", 'B', 10)
-        pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
+        pdf.set_font("Arial", 'B', 12) # Un poco más grande para el nombre
+        pdf.multi_cell(ancho_et, 5, datos['nombre_base'].upper(), align='C')
         
-        pdf.set_font("Arial", 'I', 8.5)
+        pdf.set_font("Arial", 'I', 9)
         pdf.set_x(curr_x)
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
         
-        pdf.set_font("Arial", 'B', 9)
+        pdf.set_font("Arial", 'B', 10)
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # --- SOLUCIÓN ERROR y_linea1 ---
-        # Calculamos y_linea1 dinámicamente según dónde terminó la cabecera
-        y_linea1 = pdf.get_y() + 1 
-        pdf.set_xy(curr_x + 4, y_linea1)
+        # LÍNEA DE CABECERA (La que separa el nombre de los ingredientes)
+        y_linea_cab = pdf.get_y() + 1
+        pdf.line(curr_x, y_linea_cab, curr_x + ancho_et, y_linea_cab)
+        
+        # Ajustamos y_linea1 para que los ingredientes empiecen justo debajo
+        y_linea1 = y_linea_cab + 1
 
         # 2. INGREDIENTES Y ALÉRGENOS
         if datos['ingredientes'] and str(datos['ingredientes']).strip():
             pdf.set_font("Arial", 'B', 7.5)
             pdf.cell(22, 3.5, "INGREDIENTES:", ln=0)
             pdf.set_font("Arial", '', 7.5)
-            pdf.multi_cell(ancho_util - 22, 3.5, f" {datos['ingredientes']}", align='L')
+            pdf.multi_cell(ancho_util - 22, 3.5, f" {datos['ingredientes']}", align='J')
         else:
             pdf.ln(2) # Espacio si no hay ingredientes
         
@@ -144,13 +146,16 @@ def generar_pdf_a4(datos, cantidad):
             pdf.set_font("Arial", 'I', 7.5)
             pdf.cell(ancho_util, 3.5, f"Puede contener trazas de: {datos['trazas']}", ln=True)
 
-        # 3. DATOS DE PESCA (Posición fija para consistencia visual)
+        # 3. DATOS DE PESCA (Uno debajo de otro para más claridad)
         y_linea2 = curr_y + 45
         pdf.line(curr_x, y_linea2, curr_x + ancho_et, y_linea2)
-        pdf.set_xy(curr_x, y_linea2 + 1)
-        pdf.set_font("Arial", 'B', 7.5)
-        texto_pesca = f"ZONA: {datos['zona']}  |  MÉTODO: {datos['metodo']}  |  ARTE: {datos['arte']}"
-        pdf.cell(ancho_et, 4, texto_pesca, align='C', ln=True)
+        pdf.set_xy(curr_x + 4, y_linea2 + 1)
+        pdf.set_font("Arial", 'B', 8)
+        pdf.cell(ancho_et, 4, f"ZONA DE CAPTURA: {datos['zona']}", ln=True)
+        pdf.set_x(curr_x + 4)
+        pdf.cell(ancho_et, 4, f"MÉTODO DE PESCA: {datos['metodo']}", ln=True)
+        pdf.set_x(curr_x + 4)
+        pdf.cell(ancho_et, 4, f"ARTE DE PESCA: {datos['arte']}", ln=True)
 
         # 4. CONSERVACIÓN
         y_linea3 = pdf.get_y() + 1
@@ -179,11 +184,25 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_font("Arial", '', 6.5)
         pdf.multi_cell(62, 2.8, datos['expedidor_info'], align='L')
 
-        # ÓVALO SANITARIO
-        pdf.ellipse(curr_x + 72, y_linea5 + 1.5, 22, 7)
-        pdf.set_xy(curr_x + 72, y_linea5 + 2.8)
-        pdf.set_font("Arial", 'B', 6.5)
-        pdf.cell(22, 4, f"ES {datos['ovalo']} CE", align='C')
+        # ÓVALO SANITARIO (Texto en 3 niveles)
+        ancho_oval, alto_oval = 24, 10
+        x_oval = curr_x + 72
+        y_oval = y_linea5 + 1
+        
+        # Dibujar la elipse
+        pdf.ellipse(x_oval, y_oval, ancho_oval, alto_oval)
+        
+        # Texto interno repartido
+        pdf.set_font("Arial", 'B', 6)
+        # Línea 1: ES
+        pdf.set_xy(x_oval, y_oval + 1.5)
+        pdf.cell(ancho_oval, 2.5, "ES", align='C')
+        # Línea 2: Número de registro
+        pdf.set_xy(x_oval, y_oval + 3.8)
+        pdf.cell(ancho_oval, 2.5, datos['ovalo'], align='C')
+        # Línea 3: CE
+        pdf.set_xy(x_oval, y_oval + 6.1)
+        pdf.cell(ancho_oval, 2.5, "CE", align='C')
 
         # --- Lógica de rejilla ---
         if (i + 1) % 2 == 0:
@@ -248,6 +267,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
