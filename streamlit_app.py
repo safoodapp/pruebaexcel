@@ -4,7 +4,7 @@ from datetime import date, timedelta
 from fpdf import FPDF
 
 # =========================================================
-# 1. CONFIGURACIÓN Y ESTILO (ACCESIBILIDAD +50 AÑOS)
+# 1. CONFIGURACIÓN Y ESTILO
 # =========================================================
 st.set_page_config(
     page_title="Generador de Etiquetas de Santiago y Santiago", 
@@ -58,20 +58,32 @@ df_exped = load_sheet("EXPEDIDORES")
 df_trazas_config = load_sheet("TRAZAS_CONFIG")
 
 # =========================================================
-# 3. INTERFAZ DE USUARIO (SIDEBAR VOLUNTARIO)
+# 3. INTERFAZ DE USUARIO (SIN SIDEBAR - SEGURO 100%)
 # =========================================================
 st.title("🏷️ Generador de Etiquetas de Santiago y Santiago")
 
-# Esto asegura que el botón viva DENTRO del sidebar siempre
-with st.sidebar:
-    st.header("Menú")
+# Creamos una fila especial para el botón de reset
+col_reset, col_vacia = st.columns([1, 2]) 
+with col_reset:
     if st.button("🔄 NUEVA ETIQUETA / LIMPIAR"):
         st.rerun()
-    st.write("---")
-    st.caption("Puedes cerrar esta barra con la flecha de arriba a la izquierda.")
+
+st.markdown("---") # Una línea divisoria para separar
+
+# Aplicar fuentes grandes a la interfaz para que sea visual
+st.markdown("""
+    <style>
+    .stSelectbox label, .stTextInput label, .stDateInput label, .stNumberInput label {
+        font-size: 1.3rem !important; font-weight: bold !important;
+        color: #1E3A8A;
+    }
+    div[data-testid="stExpander"] p { font-size: 1.2rem; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # Aquí ya siguen tus columnas normales del cuerpo principal
 col1, col2 = st.columns(2)
+# ... nombre_base, forma, etc.
 
 with col1:
     nombre_base = st.selectbox("Producto", preparar_lista(df_productos, col_name="NOMBRE_BASE"))
@@ -262,6 +274,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             pdf_bytes = generar_pdf_a4(info_etiqueta, cantidad)
             st.success("✅ ¡Etiquetas listas!")
             st.download_button("📥 DESCARGAR PDF PARA IMPRIMIR", data=pdf_bytes, file_name=f"etiquetas_{lote}.pdf", mime="application/pdf")
+
 
 
 
