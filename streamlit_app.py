@@ -93,9 +93,7 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
 # =========================================================
 # 4. FUNCIÓN PDF CORREGIDA
 # =========================================================
-# =========================================================
-# 4. FUNCIÓN PDF CORREGIDA (ALINEACIÓN DINÁMICA Y PIE FIJO)
-# =========================================================
+
 def generar_pdf_a4(datos, cantidad):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
     pdf.set_auto_page_break(auto=False)
@@ -111,32 +109,32 @@ def generar_pdf_a4(datos, cantidad):
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
         # 1. CABECERA
-        pdf.set_xy(curr_x, curr_y + 3)
-        pdf.set_font("Arial", 'B', 11)
+        pdf.set_xy(curr_x, curr_y + 4)
+        
+        pdf.set_font("Arial", 'B', 10)
         pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
         
-        pdf.set_font("Arial", 'I', 9)
+        pdf.set_font("Arial", 'I', 8.5)
         pdf.set_x(curr_x)
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
-
-        pdf.set_font("Arial", 'B', 10) 
+        
+        pdf.set_font("Arial", 'B', 9)
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # LÍNEA 1: Separador tras cabecera
-        y_linea1 = curr_y + 22
-        pdf.line(curr_x, y_linea1, curr_x + ancho_et, y_linea1)
 
-        # 2. INGREDIENTES Y ALÉRGENOS (Bloque unificado para evitar descuadres)
+        # 2. INGREDIENTES Y ALÉRGENOS
         pdf.set_xy(curr_x + 4, y_linea1 + 1.5)
-        
+
         if datos['ingredientes'] and str(datos['ingredientes']).strip():
-            pdf.set_font("Arial", 'B', 7.5)
-            # Metemos "INGREDIENTES" dentro de la misma cadena para que no salte de línea
-            texto_ing = f"INGREDIENTES: {datos['ingredientes']}"
-            pdf.multi_cell(ancho_util, 3.5, texto_ing, align='L')
+        # Solo el título en negrita
+        pdf.set_font("Arial", 'B', 7.5)
+        pdf.cell(22, 3.5, "INGREDIENTES:", ln=0)
+
+        # Texto normal en la misma línea
+        pdf.set_font("Arial", '', 7.5)
+        pdf.multi_cell(ancho_util - 22, 3.5, f" {datos['ingredientes']}", align='L')
         else:
-            # Si no hay ingredientes, dejamos espacio para que no quede pegado
-            pdf.set_y(pdf.get_y() + 2)
+        pdf.set_y(pdf.get_y() + 2)
         
         # Alérgenos (siempre debajo de ingredientes)
         pdf.set_x(curr_x + 4)
@@ -163,14 +161,20 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_font("Arial", 'B', 6.5)
         pdf.multi_cell(ancho_et - 4, 3, datos['mencion_conservacion'], align='C')
 
-        # 5. LOTE Y FECHAS (Anclado a posición inferior)
+       # 5. LOTE Y FECHAS
         y_linea4 = curr_y + 58
         pdf.line(curr_x, y_linea4, curr_x + ancho_et, y_linea4)
         pdf.set_xy(curr_x + 4, y_linea4 + 1.5)
-        pdf.set_font("Arial", 'B', 11)
-        pdf.cell(45, 6, f"LOTE: {datos['lote']}")
         pdf.set_font("Arial", 'B', 10)
-        pdf.cell(45, 6, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
+        pdf.cell(45, 5, f"LOTE: {datos['lote']}")
+        pdf.cell(45, 5, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
+
+        # Mostrar fecha de descongelación si existe
+        if datos.get("f_des"):
+        pdf.set_x(curr_x + 4)
+        pdf.set_font("Arial", '', 8)
+        pdf.cell(ancho_et - 8, 4, f"F. DESCONGELACIÓN: {datos['f_des']}", ln=True)
+
 
         # 6. EXPEDIDOR Y ÓVALO (Pie de página inamovible)
         y_linea5 = curr_y + 67
@@ -181,11 +185,12 @@ def generar_pdf_a4(datos, cantidad):
         # Multi_cell limitada para no pisar el óvalo
         pdf.multi_cell(62, 3, datos['expedidor_info'], align='L')
 
-        # ÓVALO SANITARIO CORREGIDO
-        pdf.ellipse(curr_x + 72, y_linea5 + 1.5, 22, 7)
-        pdf.set_xy(curr_x + 72, y_linea5 + 2.2)
-        pdf.set_font("Arial", 'B', 6)
-        pdf.cell(22, 5, f"ES {datos['ovalo']} CE", align='C')
+        # ÓVALO SANITARIO AJUSTADO
+        pdf.ellipse(curr_x + 70, y_linea5 + 1.5, 24, 8)
+        pdf.set_xy(curr_x + 70, y_linea5 + 2.8)
+        pdf.set_font("Arial", 'B', 6.5)
+        pdf.cell(24, 4, f"ES {datos['ovalo']} CE", align='C')
+
 
         # --- Lógica de rejilla 2x3 ---
         if (i + 1) % 2 == 0:
@@ -250,6 +255,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
