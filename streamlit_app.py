@@ -22,7 +22,7 @@ def limpiar_nan(texto):
     return "" if txt.lower() == "nan" or not txt.strip() else txt
 
 # =========================================================
-# 2. CARGA DE DATOS (ttl=60 para ver cambios rápido)
+# 2. CARGA DE DATOS
 # =========================================================
 SPREADSHEET_ID = "1gMEnVHqQmTqfhwMWmyybliH_ar4veAFq179FKpU6ZTA"
 GIDS = {
@@ -36,6 +36,7 @@ def load_sheet(name):
     url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={GIDS[name]}"
     return pd.read_csv(url)
 
+# Cargar dataframes
 df_productos = load_sheet("PRODUCTOS")
 df_transform = load_sheet("FORMAS_TRANSFORMACION")
 df_estados = load_sheet("ESTADOS_PRODUCTO")
@@ -51,7 +52,7 @@ def preparar_lista(df, col_idx=None, col_name=None):
     return ["Selecciona una opción"] + items
 
 # =========================================================
-# 3. INTERFAZ Y BOTÓN LIMPIAR
+# 3. INTERFAZ
 # =========================================================
 st.title("🏷️ Generador de Etiquetas de Santiago y Santiago")
 
@@ -90,7 +91,7 @@ with c8:
 cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p10")
 
 # =========================================================
-# 4. FUNCIÓN PDF (CORRECCIÓN FINAL DE MÁRGENES Y ÓVALO)
+# 4. FUNCIÓN PDF CORREGIDA
 # =========================================================
 def generar_pdf_a4(datos, cantidad):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
@@ -100,40 +101,38 @@ def generar_pdf_a4(datos, cantidad):
     ancho_et, alto_et = 102, 76
     mx, my, sep = 5, 10, 5 
     curr_x, curr_y = mx, my
+    ancho_util = ancho_et - 6 # Definimos el ancho útil para el texto
 
     for i in range(int(cantidad)):
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # 1. CABECERA (Nombres)
+        # 1. CABECERA
         pdf.set_xy(curr_x, curr_y + 4)
         pdf.set_font("Arial", 'B', 11)
         pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
         
         pdf.set_font("Arial", 'I', 9)
-        pdf.set_xy(curr_x, pdf.get_y()) 
+        pdf.set_x(curr_x) 
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
 
-        pdf.set_font("Arial", '', 10) 
-        pdf.set_y(pdf.get_y() + 1.5) 
+        pdf.set_font("Arial", 'B', 10) 
+        pdf.set_y(pdf.get_y() + 1) 
         pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # Separador dinámico
+        # Separador
         y_dinamica = pdf.get_y() + 2
         pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
         y_dinamica += 1
 
-        # 2. INGREDIENTES (Solo si existen)
-        if datos['ingredientes'] and str(datos['ingredientes']).strip().lower() != "nan" and str(datos['ingredientes']).strip() != "":
-            pdf.set_xy(curr_x + 3, y_dinamica)
-            long = len(datos['ingredientes'])
-            f_size = 7.5 if long < 130 else 6.5
-            pdf.set_font("Arial", 'B', f_size)
+        # 2. INGREDIENTES / ALÉRGENOS
+        pdf.set_xy(curr_x + 3, y_dinamica)
+        if datos['ingredientes']:
+            pdf.set_font("Arial", 'B', 7)
             pdf.write(3.5, "INGREDIENTES: ")
-            pdf.set_font("Arial", '', f_size)
-            pdf.multi_cell(79, 3.5, datos['ingredientes'], align='L')
-            y_dinamica = pdf.get_y() + 1.5
-
-        # 3. ALÉRGENOS
+            pdf.set_font("Arial", '', 7)
+            pdf.multi_cell(ancho_util, 3.5, datos['ingredientes'], align='L')
+        
+        y_dinamica = pdf.get_y() + 1
         pdf.set_xy(curr_x + 3, y_dinamica)
         pdf.set_font("Arial", 'B', 8)
         pdf.cell(ancho_util, 4, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
@@ -141,75 +140,78 @@ def generar_pdf_a4(datos, cantidad):
         if datos['trazas']:
             pdf.set_x(curr_x + 3)
             pdf.set_font("Arial", 'I', 7)
-            pdf.cell(ancho_util, 3, f"Puede contener: {datos['trazas']}", ln=True)
+            pdf.cell(ancho_util, 3, f"Puede contener trazas de: {datos['trazas']}", ln=True)
         
-        y_dinamica = pdf.get_y() + 2
-
-        # 4. DATOS DE PESCA (Suben si hay sitio)
+        # 3. DATOS DE PESCA
+        y_dinamica = curr_y + 42 # Fijamos posición para que no baile según ingredientes
         pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
-        pdf.set_font("Arial", 'B', 7.5)
+        pdf.set_font("Arial", 'B', 7)
         pdf.set_xy(curr_x + 3, y_dinamica + 1)
-        pdf.write(4, "ZONA DE CAPTURA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['zona']}\n")
-        pdf.set_x(curr_x + 3); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "MÉTODO DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['metodo']}\n")
-        pdf.set_x(curr_x + 3); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "ARTE DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['arte']}\n")
+        pdf.cell(ancho_util, 3.5, f"ZONA: {datos['zona']}  |  MÉTODO: {datos['metodo']}  |  ARTE: {datos['arte']}", align='L', ln=True)
         
-        y_dinamica = pdf.get_y() + 2
-
-        # 5. CONSERVACIÓN
+        # 4. CONSERVACIÓN
+        y_dinamica = pdf.get_y() + 1
         pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
         pdf.set_xy(curr_x + 2, y_dinamica + 1)
         pdf.set_font("Arial", 'B', 6.5)
         pdf.multi_cell(ancho_et - 4, 2.8, datos['mencion_conservacion'], align='C')
         
-        y_dinamica = pdf.get_y() + 1.5
-
-        # 6. LOTE Y FECHAS
+        # 5. LOTE Y FECHAS
+        y_dinamica = curr_y + 57
         pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
         pdf.set_xy(curr_x + 3, y_dinamica + 1)
-        pdf.set_font("Arial", 'B', 10.5); pdf.cell(0, 5, f"LOTE: {datos['lote']}", ln=True)
-        pdf.set_x(curr_x + 3); pdf.set_font("Arial", 'B', 8.5)
-        f_desc = f"  DESCONG: {datos['f_des']}" if datos['f_des'] else ""
-        pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}", ln=True)
+        pdf.set_font("Arial", 'B', 10); pdf.cell(ancho_util/2, 5, f"LOTE: {datos['lote']}")
+        pdf.set_font("Arial", 'B', 9); pdf.cell(ancho_util/2, 5, f"F. CAD: {datos['f_cad']}", align='R', ln=True)
+        if datos['f_des']:
+            pdf.set_x(curr_x + 3); pdf.set_font("Arial", 'I', 7)
+            pdf.cell(ancho_util, 4, f"F. Descongelación: {datos['f_des']}", ln=True)
 
-        # 7. EXPEDIDOR (Anclado al fondo para seguridad legal)
-        pos_pie = curr_y + 85
+        # 6. EXPEDIDOR (Corregido pos_pie para que no se salga)
+        pos_pie = curr_y + 68 
         pdf.line(curr_x, pos_pie - 1, curr_x + ancho_et, pos_pie - 1)
         pdf.set_xy(curr_x + 2, pos_pie)
         pdf.set_font("Arial", '', 6) 
-        pdf.multi_cell(60, 2.5, f"{datos['expedidor_info']}", align='L')
+        pdf.multi_cell(65, 2.5, f"{datos['expedidor_info']}", align='L')
 
-        # ÓVALO
-        pdf.ellipse(curr_x + 64, pos_pie - 1, 17, 9)
-        pdf.set_xy(curr_x + 64, pos_pie); pdf.set_font("Arial", 'B', 6); pdf.cell(17, 2, "ES", align='C', ln=True)
-        pdf.set_x(curr_x + 64); pdf.cell(17, 2, str(datos['ovalo']), align='C', ln=True)
-        pdf.set_x(curr_x + 64); pdf.cell(17, 2, "CE", align='C')
+        # ÓVALO SANITARIO
+        pdf.ellipse(curr_x + 75, pos_pie, 18, 6)
+        pdf.set_xy(curr_x + 75, pos_pie + 0.5)
+        pdf.set_font("Arial", 'B', 5.5)
+        sanitario_texto = f"ES {datos['ovalo']} CE"
+        pdf.cell(18, 5, sanitario_texto, align='C')
 
-        # Salto de etiqueta
-        if (i + 1) % 2 == 0: curr_x = mx; curr_y += alto_et + sep
-        else: curr_x += ancho_et + sep
-        if (i + 1) % 6 == 0 and (i + 1) < cantidad: pdf.add_page(); curr_x, curr_y = mx, my
+        # Salto de etiqueta (Lógica de cuadrícula 2x3 en A4)
+        if (i + 1) % 2 == 0:
+            curr_x = mx
+            curr_y += alto_et + sep
+        else:
+            curr_x += ancho_et + sep
+            
+        if (i + 1) % 6 == 0 and (i + 1) < cantidad:
+            pdf.add_page()
+            curr_x, curr_y = mx, my
             
     return pdf.output(dest='S').encode('latin-1')
+
 # =========================================================
-# 5. BOTÓN GENERAR (ALINEACIÓN Y VARIABLES CORREGIDAS)
+# 5. BOTÓN GENERAR
 # =========================================================
 if st.button("🚀 GENERAR ETIQUETAS"):
     if nombre_base == "Selecciona una opción" or not lote:
         st.error("⚠️ Falta Producto o Lote.")
     else:
-        # Extraemos la fila del producto seleccionado
         prod_row = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
         alergeno_p = limpiar_nan(prod_row["ALERGENOS"])
         
-        # Lógica de Trazas
+        # Trazas
         trazas_f = ""
         if alergeno_p:
             mask = df_trazas_config["ALERGENO"].astype(str).str.strip().str.upper() == alergeno_p.strip().upper()
-            match = df_trazas_config[mask]
+            match = df_trazas_config[match] if 'match' in locals() else df_trazas_config[mask]
             if not match.empty:
                 trazas_f = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
 
-        # Lógica de Conservación
+        # Conservación
         if "CONGELADO" in estado.upper():
             mencion_cons = "CONSERVAR A -18ºC. UNA VEZ DESCONGELADO NO VOLVER A CONGELAR. COCINAR COMPLETAMENTE ANTES DE CONSUMIR."
         elif "DESCONGELADO" in estado.upper():
@@ -217,7 +219,6 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         else:
             mencion_cons = "CONSERVAR ENTRE 0-4ºC. COCINAR COMPLETAMENTE ANTES DE CONSUMIR."
 
-        # GENERACIÓN DEL PDF (Variables sincronizadas con la función)
         pdf_bytes = generar_pdf_a4({
             "nombre_base": f"{nombre_base} {forma if forma != 'Selecciona una opción' else ''}",
             "mencion_estado": estado,
@@ -228,11 +229,11 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             "mencion_conservacion": mencion_cons,
             "metodo": metodo, 
             "lote": lote, 
-            "zona": zona if zona else "N/A", 
-            "arte": arte if arte else "N/A",
+            "zona": zona, 
+            "arte": arte,
             "f_cad": fecha_cad.strftime("%d/%m/%Y"), 
             "f_des": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
-           "expedidor_info": df_exped.iloc[0]["EXPEDIDOR"],
+            "expedidor_info": df_exped.iloc[0]["EXPEDIDOR"],
             "ovalo": df_exped.iloc[0]["OVALO_SANITARIO"]
         }, cantidad)
         
@@ -243,6 +244,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
