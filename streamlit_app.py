@@ -174,9 +174,9 @@ def generar_pdf_a4(datos, cantidad):
 
         # Mostrar fecha de descongelación si existe
         if datos.get("f_des"):
-        pdf.set_x(curr_x + 4)
-        pdf.set_font("Arial", '', 8)
-        pdf.cell(ancho_et - 8, 4, f"F. DESCONGELACIÓN: {datos['f_des']}", ln=True)
+            pdf.set_x(curr_x + 4)
+            pdf.set_font("Arial", '', 8)
+            pdf.cell(ancho_et - 8, 4, f"F. DESCONGELACIÓN: {datos['f_des']}", ln=True)
 
 
         # 6. EXPEDIDOR Y ÓVALO (Pie de página inamovible)
@@ -258,6 +258,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
