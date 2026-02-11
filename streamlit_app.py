@@ -93,11 +93,10 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
 # =========================================================
 # 4. EDICIÓN DE ETIQUETA
 # =========================================================
-
     ancho_et, alto_et = 76, 102
     mx, my, sep = 15, 10, 5 
     curr_x, curr_y = mx, my
-    ancho_util = ancho_et - 8
+    ancho_util = ancho_et - 8 
 
     for i in range(int(cantidad)):
         # 0. RECUADRO EXTERIOR
@@ -115,16 +114,15 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # LÍNEA 1: SEPARADOR CABECERA (Fijo en 22mm)
+        # SEPARADOR 1 (Cabecera)
         y_sep1 = curr_y + 22
         pdf.line(curr_x, y_sep1, curr_x + ancho_et, y_sep1)
 
-        # 2. INGREDIENTES Y ALÉRGENOS (Mucho más espacio ahora)
+        # 2. INGREDIENTES Y ALÉRGENOS
         pdf.set_xy(curr_x + 4, y_sep1 + 2)
         pdf.set_font("Arial", 'B', 7)
         pdf.cell(20, 3.5, "INGREDIENTES:", ln=0)
         pdf.set_font("Arial", '', 6.5)
-        # multi_cell ahora puede crecer sin romper nada hasta los 50mm
         pdf.multi_cell(ancho_util - 20, 3.2, f" {datos['ingredientes']}", align='J')
         
         pdf.set_x(curr_x + 4)
@@ -136,7 +134,7 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
             pdf.set_font("Arial", 'I', 6.5)
             pdf.cell(ancho_util, 3.5, f"Puede contener trazas de: {datos['trazas']}", ln=True)
 
-        # 3. DATOS DE PESCA (Anclado fijo en 52mm)
+        # 3. DATOS DE PESCA (Fijo en 52mm)
         y_sep2 = curr_y + 52
         pdf.line(curr_x, y_sep2, curr_x + ancho_et, y_sep2)
         pdf.set_xy(curr_x + 4, y_sep2 + 1.5)
@@ -147,14 +145,14 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
         pdf.set_x(curr_x + 4)
         pdf.cell(ancho_et, 4, f"ARTE DE PESCA: {datos['arte']}", ln=True)
 
-        # 4. CONSERVACIÓN (Anclado fijo en 68mm)
+        # 4. CONSERVACIÓN (Fijo en 68mm)
         y_sep3 = curr_y + 68
         pdf.line(curr_x, y_sep3, curr_x + ancho_et, y_sep3)
         pdf.set_xy(curr_x + 2, y_sep3 + 1.5)
         pdf.set_font("Arial", 'B', 6.5)
         pdf.multi_cell(ancho_et - 4, 3.2, datos['mencion_conservacion'], align='C')
 
-        # 5. LOTE Y FECHAS (Anclado fijo en 80mm)
+        # 5. LOTE Y FECHAS (Fijo en 80mm)
         y_sep4 = curr_y + 80
         pdf.line(curr_x, y_sep4, curr_x + ancho_et, y_sep4)
         pdf.set_xy(curr_x + 4, y_sep4 + 2)
@@ -168,16 +166,15 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
             pdf.set_font("Arial", 'B', 8)
             pdf.cell(ancho_util, 4, f"F. DESCONGELACIÓN: {datos['f_des']}", ln=True)
 
-        # 6. PIE Y ÓVALO (Anclado fijo en 92mm)
+        # 6. PIE Y ÓVALO (Fijo en 92mm)
         y_sep5 = curr_y + 92
         pdf.line(curr_x, y_sep5, curr_x + ancho_et, y_sep5)
         
-        # Expedidor
         pdf.set_xy(curr_x + 3, y_sep5 + 1.5)
         pdf.set_font("Arial", '', 6)
         pdf.multi_cell(45, 2.5, datos['expedidor_info'], align='L')
 
-        # Óvalo (3 niveles mejorado)
+        # Óvalo (Alineado a la derecha del pie)
         x_oval, y_oval = curr_x + 50, y_sep5 + 1
         pdf.ellipse(x_oval, y_oval, 22, 8)
         pdf.set_font("Arial", 'B', 5.5)
@@ -188,7 +185,7 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
         pdf.set_x(x_oval)
         pdf.cell(22, 2, "CE", align='C')
 
-        # --- Lógica de rejilla 2x2 para el nuevo tamaño ---
+        # --- Lógica de rejilla 2x2 ---
         if (i + 1) % 2 == 0:
             curr_x = mx
             curr_y += alto_et + sep
@@ -249,6 +246,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
