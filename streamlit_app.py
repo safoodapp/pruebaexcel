@@ -190,7 +190,7 @@ def generar_pdf_a4(datos, cantidad):
             
     return pdf.output(dest='S').encode('latin-1')
 # =========================================================
-# 5. BOTÓN GENERAR (CORREGIDO: VINCULACIÓN DE TRAZAS)
+# 5. BOTÓN GENERAR (CORRECCIÓN DE ERROR DE COLUMNA Y TRAZAS)
 # =========================================================
 if st.button("🚀 GENERAR ETIQUETAS"):
     if nombre_base == "Selecciona una opción" or not lote:
@@ -200,14 +200,24 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         prod_row = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
         alergeno_principal = limpiar_nan(prod_row["ALERGENOS"])
         
-        # 2. BUSQUEDA DE TRAZAS (Importante para que aparezcan)
+        # 2. BÚSQUEDA DE TRAZAS (Con limpieza de nombres de columna)
         trazas_final = ""
         if alergeno_principal:
-            # Buscamos en la hoja de trazas si ese alérgeno tiene un "Puede contener" configurado
-            mask = df_trazas_config["ALERGENO"].astype(str).str.strip().upper() == alergeno_principal.strip().upper()
-            match = df_trazas_config[mask]
-            if not match.empty:
-                trazas_final = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
+            # Limpiamos los nombres de las columnas por si tienen espacios invisibles
+            df_trazas_config.columns = df_trazas_config.columns.str.strip().str.upper()
+            
+            # Verificamos si la columna existe tras la limpieza
+            col_busqueda = "ALERGENO"
+            if col_busqueda in df_trazas_config.columns:
+                mask = df_trazas_config[col_busqueda].astype(str).str.strip().upper() == alergeno_principal.strip().upper()
+                match = df_trazas_config[mask]
+                if not match.empty:
+                    # Buscamos la columna de resultado (asumiendo que se llama PUEDE_CONTENER)
+                    col_res = "PUEDE_CONTENER"
+                    if col_res in df_trazas_config.columns:
+                        trazas_final = limpiar_nan(match[col_res].iloc[0])
+            else:
+                st.warning(f"No encontré la columna '{col_busqueda}' en la hoja de trazas. Revisa el Excel.")
 
         # 3. Lógica de Conservación
         if "CONGELADO" in estado.upper():
@@ -217,14 +227,14 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         else:
             mencion_cons = "CONSERVAR ENTRE 0-4ºC. COCINAR COMPLETAMENTE ANTES DE CONSUMIR."
 
-        # 4. LLAMADA AL PDF PASANDO TODAS LAS VARIABLES
+        # 4. LLAMADA AL PDF
         pdf_bytes = generar_pdf_a4({
             "nombre_base": f"{nombre_base} {forma if forma != 'Selecciona una opción' else ''}",
             "mencion_estado": estado,
             "nombre_cientifico": prod_row["NOMBRE_CIENTIFICO"],
             "ingredientes": limpiar_nan(prod_row["INGREDIENTES"]),
             "alergenos": alergeno_principal,
-            "trazas": trazas_final, # <-- AHORA SÍ SE ENVÍA
+            "trazas": trazas_final, 
             "mencion_conservacion": mencion_cons,
             "metodo": metodo, 
             "lote": lote, 
@@ -236,7 +246,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             "ovalo": df_exped.iloc[0]["OVALO_SANITARIO"]
         }, cantidad)
         
-        st.success("✅ ¡Etiqueta generada con éxito!")
+        st.success("✅ ¡Etiqueta generada!")
         st.download_button(
             label="📥 DESCARGAR PDF",
             data=pdf_bytes,
