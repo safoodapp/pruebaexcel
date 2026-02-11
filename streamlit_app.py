@@ -212,7 +212,8 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         }, cantidad)
         
         st.success("✅ ¡Etiqueta generada con éxito!")
-        st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")pdf")
+        st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf"))
+
 
 
 
