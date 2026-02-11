@@ -51,13 +51,14 @@ def preparar_lista(df, col_idx=None, col_name=None):
     return ["Selecciona una opción"] + items
 
 # =========================================================
-# 3. INTERFAZ (ORDEN SOLICITADO)
+# 3. INTERFAZ DE USUARIO (REINICIO TOTAL CORREGIDO)
 # =========================================================
 st.title("🏷️ Generador de Etiquetas de Santiago y Santiago")
 
-# BOTÓN LIMPIAR (CORREGIDO SIN ERROR AMARILLO)
+# Esto limpia la memoria de los campos para que vuelvan a "Selecciona una opción"
 if st.sidebar.button("🔄 NUEVA ETIQUETA / LIMPIAR"):
-    st.cache_data.clear()
+    for key in st.session_state.keys():
+        del st.session_state[key]
     st.rerun()
 
 # Fila 1: Producto y Transformación
@@ -108,27 +109,30 @@ def generar_pdf_a4(datos, cantidad):
     for i in range(int(cantidad)):
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # Denominación
+        # BLOQUE 1: Nombres y Estado
         pdf.set_xy(curr_x, curr_y + 4)
-        pdf.set_font("Arial", 'B', 10)
-        pdf.multi_cell(ancho_et, 4, f"{datos['nombre_base'].upper()}\nPRODUCTO {datos['mencion_estado'].upper()}", align='C')
+        pdf.set_font("Arial", 'B', 11)
+        pdf.multi_cell(ancho_et, 5, datos['nombre_base'].upper(), align='C')
         
-        # Nombre Científico
-        pdf.set_xy(curr_x, curr_y + 13)
-        pdf.set_font("Arial", 'I', 8)
+        # Nombre Científico (Ahora aquí, antes de la mención de estado)
+        pdf.set_font("Arial", 'I', 9)
+        pdf.set_xy(curr_x, curr_y + 10)
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C')
 
-        # INGREDIENTES (Fix: multi_cell para que no se salga)
-        pdf.line(curr_x, curr_y + 18, curr_x + ancho_et, curr_y + 18)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.set_xy(curr_x, curr_y + 15)
+        pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
+
+        # BLOQUE 2: Ingredientes (DENTRO DEL CUADRADO)
+        pdf.line(curr_x, curr_y + 20, curr_x + ancho_et, curr_y + 20)
         if datos['ingredientes']:
-            pdf.set_xy(curr_x + 3, curr_y + 19)
-            long = len(datos['ingredientes'])
-            f_size = 7 if long < 120 else 6
+            pdf.set_xy(curr_x + 2, curr_y + 21)
+            f_size = 7 if len(datos['ingredientes']) < 150 else 6
             pdf.set_font("Arial", 'B', f_size)
             pdf.write(3, "INGREDIENTES: ")
             pdf.set_font("Arial", '', f_size)
-            # El ancho es ancho_et - 6 para dejar márgenes laterales
-            pdf.multi_cell(ancho_et - 6, 3, datos['ingredientes'], align='L')
+            # multi_cell hace que el texto salte de línea solo sin salirse del ancho_et
+            pdf.multi_cell(ancho_et - 4, 3, datos['ingredientes'], align='L')
         
         # CONTIENE Y TRAZAS
         pdf.set_xy(curr_x + 3, curr_y + 34)
@@ -213,6 +217,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         
         st.success("✅ ¡Etiqueta generada con éxito!")
         st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
+
 
 
 
