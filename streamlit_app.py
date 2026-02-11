@@ -95,7 +95,7 @@ def generar_pdf_a4(datos, cantidad):
     pdf.set_auto_page_break(auto=False)
     pdf.add_page()
     
-    ancho_et, alto_et = 102, 76
+    ancho_et, alto_et = 76, 102
     mx, my, sep = 5, 10, 5 
     curr_x, curr_y = mx, my
     ancho_util = ancho_et - 8 
@@ -252,6 +252,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
