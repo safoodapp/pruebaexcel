@@ -31,7 +31,7 @@ GIDS = {
     "EXPEDIDORES": "1402611266", "TRAZAS_CONFIG": "1059656739",
 }
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=60)
 def load_sheet(name):
     url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={GIDS[name]}"
     return pd.read_csv(url)
@@ -217,6 +217,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         
         st.success("✅ ¡Etiqueta generada con éxito!")
         st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
+
 
 
 
