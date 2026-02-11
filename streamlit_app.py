@@ -99,39 +99,42 @@ def generar_pdf_a4(datos, cantidad):
     ancho_et, alto_et = 85, 95
     mx, my, sep = 10, 10, 5 
     curr_x, curr_y = mx, my
-    
-    # Definimos ancho_util aquí para que no de NameError
-    ancho_util = ancho_et - 6
+    ancho_util = ancho_et - 6 # Margen de 3mm a cada lado
 
     for i in range(int(cantidad)):
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # 1. NOMBRES Y ESTADO
+        # 1. NOMBRES Y ESTADO (JERARQUÍA LIMPIA)
         pdf.set_xy(curr_x, curr_y + 4)
-        pdf.set_font("Arial", 'B', 10)
+        pdf.set_font("Arial", 'B', 11)
         pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
         
-        pdf.set_font("Arial", 'I', 8)
+        pdf.set_font("Arial", 'I', 9)
         pdf.set_xy(curr_x, pdf.get_y()) 
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
 
-        pdf.set_font("Arial", '', 9) 
-        pdf.set_y(pdf.get_y() + 1)
+        pdf.set_font("Arial", '', 10) 
+        pdf.set_y(pdf.get_y() + 2) # Espacio después del científico
         pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
 
-        # 2. INGREDIENTES (USANDO MULTI_CELL PARA QUE NO SE SALGA)
-        pdf.line(curr_x, curr_y + 20, curr_x + ancho_et, curr_y + 20)
+        # 2. BLOQUE INGREDIENTES (ALINEACIÓN PERFECTA)
+        pdf.line(curr_x, curr_y + 21, curr_x + ancho_et, curr_y + 21)
         if datos['ingredientes']:
-            pdf.set_xy(curr_x + 3, curr_y + 21)
+            pdf.set_xy(curr_x + 3, curr_y + 22)
             long = len(datos['ingredientes'])
-            f_size = 6.5 if long < 130 else 5.5
+            # Fuente un pelín más grande como pediste
+            f_size = 7.5 if long < 130 else 6.5
             pdf.set_font("Arial", '', f_size)
-            # El 79 impide que se salga por la derecha
-            pdf.multi_cell(79, 3, f"INGREDIENTES: {datos['ingredientes']}", align='L')
+            
+            # Unimos todo en una sola variable para que multi_cell lo alinee solo
+            texto_completo = f"INGREDIENTES: {datos['ingredientes']}"
+            
+            # multi_cell con interlineado de 3.5 para que no esté apretado
+            pdf.multi_cell(ancho_util, 3.5, texto_completo, align='L')
         
-        # 3. ALÉRGENOS (CON ANCHO_UTIL DEFINIDO)
+        # 3. ALÉRGENOS (POSICIÓN FIJA BAJO LOS INGREDIENTES)
         pdf.set_xy(curr_x + 3, curr_y + 36)
-        pdf.set_font("Arial", 'B', 7.5)
+        pdf.set_font("Arial", 'B', 8)
         pdf.cell(ancho_util, 4, f"CONTIENE: {str(datos['alergenos']).upper()}")
         
         if datos['trazas']:
@@ -141,15 +144,15 @@ def generar_pdf_a4(datos, cantidad):
 
         # 4. DATOS DE PESCA
         pdf.rect(curr_x, curr_y + 45, ancho_et, 15)
-        pdf.set_font("Arial", 'B', 7)
-        pdf.set_xy(curr_x + 3, curr_y + 46); pdf.write(4, "ZONA DE CAPTURA: "); pdf.set_font("Arial", '', 7); pdf.write(4, f"{datos['zona']}")
-        pdf.set_xy(curr_x + 3, curr_y + 50); pdf.set_font("Arial", 'B', 7); pdf.write(4, "MÉTODO DE PESCA: "); pdf.set_font("Arial", '', 7); pdf.write(4, f"{datos['metodo']}")
-        pdf.set_xy(curr_x + 3, curr_y + 54); pdf.set_font("Arial", 'B', 7); pdf.write(4, "ARTE DE PESCA: "); pdf.set_font("Arial", '', 7); pdf.write(4, f"{datos['arte']}")
+        pdf.set_font("Arial", 'B', 7.5)
+        pdf.set_xy(curr_x + 3, curr_y + 46); pdf.write(4, "ZONA DE CAPTURA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['zona']}")
+        pdf.set_xy(curr_x + 3, curr_y + 50); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "MÉTODO DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['metodo']}")
+        pdf.set_xy(curr_x + 3, curr_y + 54); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "ARTE DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['arte']}")
 
         # 5. CONSERVACIÓN
         pdf.rect(curr_x, curr_y + 61, ancho_et, 9)
         pdf.set_xy(curr_x + 2, curr_y + 62)
-        pdf.set_font("Arial", 'B', 6)
+        pdf.set_font("Arial", 'B', 6.5)
         pdf.multi_cell(ancho_et - 4, 2.8, datos['mencion_conservacion'], align='C')
 
         # 6. LOTE Y FECHAS
@@ -159,12 +162,11 @@ def generar_pdf_a4(datos, cantidad):
         f_desc = f"  DESCONG: {datos['f_des']}" if datos['f_des'] else ""
         pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}")
 
-        # 7. EXPEDIDOR (SINCRONIZADO CON EL BOTÓN)
+        # 7. EXPEDIDOR Y ÓVALO (POSICIÓN FINAL)
         pdf.set_xy(curr_x + 2, curr_y + 85)
         pdf.set_font("Arial", '', 6) 
         pdf.multi_cell(60, 2.5, f"{datos['expedidor_info']}", align='L')
 
-        # ÓVALO
         pdf.ellipse(curr_x + 64, curr_y + 84, 17, 9)
         pdf.set_xy(curr_x + 64, curr_y + 85); pdf.set_font("Arial", 'B', 6); pdf.cell(17, 2, "ES", align='C', ln=True)
         pdf.set_x(curr_x + 64); pdf.cell(17, 2, str(datos['ovalo']), align='C', ln=True)
@@ -229,6 +231,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
