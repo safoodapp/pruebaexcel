@@ -117,7 +117,7 @@ def generar_pdf_a4(datos, cantidad):
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
         # LÍNEA 1: SEPARADOR CABECERA (Fijo)
-        y_sep1 = curr_y + 24
+        y_sep1 = curr_y + 20
         pdf.line(curr_x, y_sep1, curr_x + ancho_et, y_sep1)
 
         # 2. INGREDIENTES Y ALÉRGENOS (Letra un poco más pequeña para asegurar espacio)
@@ -170,13 +170,13 @@ def generar_pdf_a4(datos, cantidad):
             pdf.cell(ancho_util, 3.5, f"F. DESCONGELACIÓN: {datos['f_des']}", ln=True)
 
         # 6. PIE Y ÓVALO (Anclado fijo en 71mm)
-        y_sep5 = curr_y + 71
+        y_sep5 = curr_y + 69
         pdf.line(curr_x, y_sep5, curr_x + ancho_et, y_sep5)
         
         # Expedidor
         pdf.set_xy(curr_x + 3, y_sep5 + 1)
         pdf.set_font("Arial", '', 6)
-        pdf.multi_cell(65, 2.2, datos['expedidor_info'], align='L')
+        pdf.multi_cell(65, 2.2, datos['expedidor_info'], align='C')
 
         # Óvalo en 3 niveles
         x_oval, y_oval = curr_x + 75, y_sep5 + 0.5
@@ -252,6 +252,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
