@@ -131,26 +131,26 @@ def generar_pdf_a4(datos, cantidad):
         if datos['ingredientes'] and str(datos['ingredientes']).strip():
             pdf.set_font("Arial", 'B', 7.5)
             pdf.cell(22, 3.5, "INGREDIENTES:", ln=0)
-            pdf.set_font("Arial", '', 7.5)
-            pdf.multi_cell(ancho_util - 22, 3.5, f" {datos['ingredientes']}", align='J')
+            pdf.set_font("Arial", '', 6.5)
+            pdf.multi_cell(ancho_util - 22, 3.5, f" {datos['ingredientes']}", align='C')
         else:
             pdf.ln(2) # Espacio si no hay ingredientes
         
         # Alérgenos (siempre debajo de ingredientes)
         pdf.set_x(curr_x + 4)
-        pdf.set_font("Arial", 'B', 8.5)
+        pdf.set_font("Arial", 'B', 7.5)
         pdf.cell(ancho_util, 4.5, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
         
         if datos['trazas']:
             pdf.set_x(curr_x + 4)
-            pdf.set_font("Arial", 'I', 7.5)
+            pdf.set_font("Arial", 'I', 6.5)
             pdf.cell(ancho_util, 3.5, f"Puede contener trazas de: {datos['trazas']}", ln=True)
 
         # 3. DATOS DE PESCA (Uno debajo de otro para más claridad)
         y_linea2 = curr_y + 45
         pdf.line(curr_x, y_linea2, curr_x + ancho_et, y_linea2)
         pdf.set_xy(curr_x + 4, y_linea2 + 1)
-        pdf.set_font("Arial", 'B', 8)
+        pdf.set_font("Arial", 'B', 7)
         pdf.cell(ancho_et, 4, f"ZONA DE CAPTURA: {datos['zona']}", ln=True)
         pdf.set_x(curr_x + 4)
         pdf.cell(ancho_et, 4, f"MÉTODO DE PESCA: {datos['metodo']}", ln=True)
@@ -267,6 +267,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
