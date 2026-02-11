@@ -90,10 +90,7 @@ with c8:
 cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p10")
 
 # =========================================================
-# 4. FUNCIÓN PDF (BLINDADA CONTRA DESBORDAMIENTOS)
-# =========================================================
-# =========================================================
-# 4. FUNCIÓN PDF (CORREGIDA: TRAZAS Y ORDEN DE INGREDIENTES)
+# 4. FUNCIÓN PDF (CORRECCIÓN FINAL DE MÁRGENES Y ÓVALO)
 # =========================================================
 def generar_pdf_a4(datos, cantidad):
     pdf = FPDF(orientation='P', unit='mm', format='A4')
@@ -105,7 +102,7 @@ def generar_pdf_a4(datos, cantidad):
     curr_x, curr_y = mx, my
 
     for i in range(int(cantidad)):
-        # 1. RECUADRO
+        # 1. RECUADRO PRINCIPAL
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
         # 2. CABECERA
@@ -121,67 +118,66 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_x(curr_x)
         pdf.cell(ancho_et, 5, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # 3. SECCIÓN INGREDIENTES Y ALÉRGENOS (MEJORADO)
+        # 3. SECCIÓN INGREDIENTES (RESTRINGIDO PARA QUE NO SE SALGA)
         pdf.line(curr_x + 2, curr_y + 22, curr_x + ancho_et - 2, curr_y + 22)
-        y_ingredientes = curr_y + 23
-        pdf.set_xy(curr_x + 3, y_ingredientes)
         
-        # Lógica de Ingredientes
+        # Ajustamos el cursor y limitamos el ancho a 96mm para dejar margen derecho
+        pdf.set_xy(curr_x + 3, curr_y + 23)
         pdf.set_font("Arial", 'B', 8)
-        if datos['ingredientes'] and str(datos['ingredientes']).strip() != "":
-            pdf.write(4, "INGREDIENTES: ")
-            pdf.set_font("Arial", '', 8)
-            pdf.multi_cell(95, 4, str(datos['ingredientes']), align='L')
-        else:
-            pdf.cell(95, 4, "INGREDIENTES: No contiene.", ln=True)
-
-        # Lógica de Alérgenos y Trazas (Lo que faltaba)
+        
+        # Usamos multi_cell para TODO el bloque de ingredientes para controlar el ancho
+        ing_texto = f"INGREDIENTES: {datos['ingredientes'] if datos['ingredientes'] else 'No contiene.'}"
+        pdf.multi_cell(95, 3.8, ing_texto, align='L')
+        
+        # Alérgenos y Trazas
         pdf.set_x(curr_x + 3)
-        pdf.set_font("Arial", 'B', 8)
-        pdf.write(4, f"CONTIENE: {str(datos['alergenos']).upper()}")
-        pdf.ln(4)
+        pdf.set_font("Arial", 'B', 9) # Un poco más grande para que destaque
+        pdf.multi_cell(95, 4.5, f"CONTIENE: {str(datos['alergenos']).upper()}", align='L')
         
-        if datos['trazas']:
+        if datos['trazas'] and str(datos['trazas']).lower() != "nan":
             pdf.set_x(curr_x + 3)
-            pdf.set_font("Arial", 'I', 8) # Itálica para las trazas
+            pdf.set_font("Arial", 'I', 8)
             pdf.multi_cell(95, 4, f"Puede contener: {str(datos['trazas']).upper()}", align='L')
 
         # 4. DATOS DE PESCA
         pdf.line(curr_x + 2, curr_y + 48, curr_x + ancho_et - 2, curr_y + 48)
         pdf.set_xy(curr_x + 3, curr_y + 49)
         pdf.set_font("Arial", 'B', 8)
-        pdf.write(4, "ZONA: "); pdf.set_font("Arial", '', 8); pdf.write(4, f"{datos['zona']}  ")
-        pdf.set_font("Arial", 'B', 8); pdf.write(4, "MÉTODO: "); pdf.set_font("Arial", '', 8); pdf.write(4, f"{datos['metodo']}  ")
-        pdf.set_font("Arial", 'B', 8); pdf.write(4, "ARTE: "); pdf.set_font("Arial", '', 8); pdf.write(4, f"{datos['arte']}\n")
+        # Combinamos en una sola línea controlada
+        pesca_info = f"ZONA: {datos['zona']}  MÉTODO: {datos['metodo']}  ARTE: {datos['arte']}"
+        pdf.cell(95, 4, pesca_info, ln=True)
         
         # 5. CONSERVACIÓN
         pdf.set_x(curr_x + 3)
         pdf.set_font("Arial", 'B', 7)
         pdf.multi_cell(ancho_et - 6, 3.5, datos['mencion_conservacion'], align='C')
 
-        # 6. LOTE Y CADUCIDAD (ORDENADO)
+        # 6. LOTE Y CADUCIDAD
         pdf.line(curr_x + 2, curr_y + 62, curr_x + ancho_et - 2, curr_y + 62)
         pdf.set_xy(curr_x + 3, curr_y + 63)
         pdf.set_font("Arial", 'B', 11)
-        pdf.cell(50, 7, f"LOTE: {datos['lote']}")
+        pdf.cell(45, 7, f"LOTE: {datos['lote']}")
         
         pdf.set_font("Arial", 'B', 10)
-        fecha_texto = f"F. CAD: {datos['f_cad']}"
-        if datos['f_des']: fecha_texto += f" (D: {datos['f_des']})"
-        pdf.cell(46, 7, fecha_texto, align='R', ln=True)
+        f_cad_completa = f"F. CAD: {datos['f_cad']}"
+        if datos['f_des']: f_cad_completa += f" (D: {datos['f_des']})"
+        pdf.cell(50, 7, f_cad_completa, align='R', ln=True)
 
-        # 7. EXPEDIDOR Y ÓVALO
+        # 7. EXPEDIDOR Y ÓVALO (REPOSICIONADO PARA NO PISARSE)
         pdf.line(curr_x + 2, curr_y + 70, curr_x + ancho_et - 2, curr_y + 70)
-        pdf.set_xy(curr_x + 2, curr_y + 70.5)
+        
+        # Datos empresa a la izquierda
+        pdf.set_xy(curr_x + 2, curr_y + 71)
         pdf.set_font("Arial", '', 6)
-        pdf.multi_cell(75, 2.2, f"{datos['expedidor_info']}", align='L')
+        pdf.multi_cell(70, 2.2, f"{datos['expedidor_info']}", align='L')
 
-        pdf.ellipse(curr_x + 80, curr_y + 70.8, 18, 4.8)
-        pdf.set_xy(curr_x + 80, curr_y + 71.5)
+        # Óvalo Sanitario a la derecha (ajustado para que no toque las letras)
+        pdf.ellipse(curr_x + 78, curr_y + 71, 18, 4.2)
+        pdf.set_xy(curr_x + 78, curr_y + 71.5)
         pdf.set_font("Arial", 'B', 5.5)
         pdf.cell(18, 3, f"ES {datos['ovalo']} CE", align='C')
 
-        # Lógica de posición para 2x3 etiquetas
+        # Lógica de rejilla A4
         if (i + 1) % 2 == 0:
             curr_x = mx
             curr_y += alto_et + sep
@@ -193,27 +189,27 @@ def generar_pdf_a4(datos, cantidad):
             curr_x, curr_y = mx, my
             
     return pdf.output(dest='S').encode('latin-1')
-
 # =========================================================
-# 5. BOTÓN GENERAR (ALINEACIÓN Y VARIABLES CORREGIDAS)
+# 5. BOTÓN GENERAR (CORREGIDO: VINCULACIÓN DE TRAZAS)
 # =========================================================
 if st.button("🚀 GENERAR ETIQUETAS"):
     if nombre_base == "Selecciona una opción" or not lote:
         st.error("⚠️ Falta algún campo sin rellenar, revisalo.")
     else:
-        # Extraemos la fila del producto seleccionado
+        # 1. Extraemos los datos del producto
         prod_row = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
-        alergeno_p = limpiar_nan(prod_row["ALERGENOS"])
+        alergeno_principal = limpiar_nan(prod_row["ALERGENOS"])
         
-        # Lógica de Trazas
-        trazas_f = ""
-        if alergeno_p:
-            mask = df_trazas_config["ALERGENO"].astype(str).str.strip().str.upper() == alergeno_p.strip().upper()
+        # 2. BUSQUEDA DE TRAZAS (Importante para que aparezcan)
+        trazas_final = ""
+        if alergeno_principal:
+            # Buscamos en la hoja de trazas si ese alérgeno tiene un "Puede contener" configurado
+            mask = df_trazas_config["ALERGENO"].astype(str).str.strip().upper() == alergeno_principal.strip().upper()
             match = df_trazas_config[mask]
             if not match.empty:
-                trazas_f = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
+                trazas_final = limpiar_nan(match["PUEDE_CONTENER"].iloc[0])
 
-        # Lógica de Conservación
+        # 3. Lógica de Conservación
         if "CONGELADO" in estado.upper():
             mencion_cons = "CONSERVAR A -18ºC. UNA VEZ DESCONGELADO NO VOLVER A CONGELAR. COCINAR COMPLETAMENTE ANTES DE CONSUMIR."
         elif "DESCONGELADO" in estado.upper():
@@ -221,14 +217,14 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         else:
             mencion_cons = "CONSERVAR ENTRE 0-4ºC. COCINAR COMPLETAMENTE ANTES DE CONSUMIR."
 
-        # GENERACIÓN DEL PDF (Variables sincronizadas con la función)
+        # 4. LLAMADA AL PDF PASANDO TODAS LAS VARIABLES
         pdf_bytes = generar_pdf_a4({
             "nombre_base": f"{nombre_base} {forma if forma != 'Selecciona una opción' else ''}",
             "mencion_estado": estado,
             "nombre_cientifico": prod_row["NOMBRE_CIENTIFICO"],
             "ingredientes": limpiar_nan(prod_row["INGREDIENTES"]),
-            "alergenos": alergeno_p,
-            "trazas": trazas_f,
+            "alergenos": alergeno_principal,
+            "trazas": trazas_final, # <-- AHORA SÍ SE ENVÍA
             "mencion_conservacion": mencion_cons,
             "metodo": metodo, 
             "lote": lote, 
@@ -247,6 +243,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
