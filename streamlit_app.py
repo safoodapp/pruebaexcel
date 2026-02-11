@@ -223,20 +223,28 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         else:
             mencion_cons = "CONSERVAR ENTRE 0-4ºC. COCINAR COMPLETAMENTE ANTES DE CONSUMIR."
 
-        pdf_bytes = generar_pdf_a4({
+       pdf_bytes = generar_pdf_a4({
             "nombre_base": f"{nombre_base} {forma if forma != 'Selecciona una opción' else ''}",
             "mencion_estado": estado,
             "nombre_cientifico": prod_row["NOMBRE_CIENTIFICO"],
             "ingredientes": limpiar_nan(prod_row["INGREDIENTES"]),
-            "alergenos": alergeno_p, "trazas": trazas_f, "mencion_conservacion": mencion_cons,
-            "metodo": metodo, "lote": lote, "zona": zona, "arte": arte,
+            "alergenos": alergeno_p,
+            "trazas": trazas_f,
+            "mencion_conservacion": mencion_cons,
+            "metodo": metodo, 
+            "lote": lote, 
+            "zona": zona, 
+            "arte": arte,
             "f_cad": fecha_cad.strftime("%d/%m/%Y"), 
             "f_des": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
+            # Aquí leemos la columna exacta de tu imagen:
+            "expedidor_info": df_exped.iloc[0]["EXPEDIDOR"], 
             "ovalo": df_exped.iloc[0]["OVALO_SANITARIO"]
         }, cantidad)
         
         st.success("✅ Generada con éxito.")
         st.download_button("📥 DESCARGAR PDF", data=pdf_bytes, file_name=f"etiqueta_{lote}.pdf", mime="application/pdf")
+
 
 
 
