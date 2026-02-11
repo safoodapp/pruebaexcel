@@ -99,12 +99,13 @@ def generar_pdf_a4(datos, cantidad):
     ancho_et, alto_et = 85, 95
     mx, my, sep = 10, 10, 5 
     curr_x, curr_y = mx, my
-    ancho_util = ancho_et - 6
+    # Margen de seguridad más estricto para evitar desbordes
+    ancho_util_texto = 77 
 
     for i in range(int(cantidad)):
         pdf.rect(curr_x, curr_y, ancho_et, alto_et)
         
-        # 1. NOMBRES Y ESTADO (JERARQUÍA LIMPIA)
+        # 1. CABECERA
         pdf.set_xy(curr_x, curr_y + 4)
         pdf.set_font("Arial", 'B', 11)
         pdf.multi_cell(ancho_et, 4.5, datos['nombre_base'].upper(), align='C')
@@ -114,69 +115,86 @@ def generar_pdf_a4(datos, cantidad):
         pdf.cell(ancho_et, 4, f"({datos['nombre_cientifico']})", align='C', ln=True)
 
         pdf.set_font("Arial", '', 10) 
-        pdf.set_y(pdf.get_y() + 2) 
-        pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C')
+        pdf.set_y(pdf.get_y() + 1.5) 
+        pdf.cell(ancho_et, 4, f"PRODUCTO {datos['mencion_estado'].upper()}", align='C', ln=True)
 
-        # 2. BLOQUE DINÁMICO DE INGREDIENTES
-        pdf.line(curr_x, curr_y + 21, curr_x + ancho_et, curr_y + 21)
-        y_dinamica = curr_y + 22 
+        # Línea de separación
+        y_dinamica = pdf.get_y() + 2
+        pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
+        y_dinamica += 1
 
+        # 2. INGREDIENTES (REDISEÑO TOTAL PARA EVITAR SALIDAS)
         if datos['ingredientes'] and str(datos['ingredientes']).strip().lower() != "nan" and str(datos['ingredientes']).strip() != "":
             pdf.set_xy(curr_x + 3, y_dinamica)
             long = len(datos['ingredientes'])
-            f_size = 7.5 if long < 130 else 6.5
+            f_size = 7.5 if long < 120 else 6.5
             
-            # Título en Negrita
+            # TRUCO: Escribimos "INGREDIENTES:" y el texto en celdas separadas 
+            # pero coordinadas para que el salto sea perfecto
             pdf.set_font("Arial", 'B', f_size)
             pdf.write(3.5, "INGREDIENTES: ")
             
-            # Texto en Normal
             pdf.set_font("Arial", '', f_size)
-            pdf.multi_cell(79, 3.5, datos['ingredientes'], align='L')
+            # El multi_cell empieza justo después del write
+            # Usamos un ancho algo menor para que el primer renglón no sufra
+            pdf.multi_cell(ancho_util_texto - 20, 3.5, datos['ingredientes'], align='L')
             y_dinamica = pdf.get_y() + 1.5
         else:
-            y_dinamica = curr_y + 23
+            y_dinamica += 2 # Espacio mínimo si no hay ingredientes
 
-        # 3. ALÉRGENOS (SE PEGAN A LOS INGREDIENTES)
+        # 3. ALÉRGENOS (Pegados al texto anterior)
         pdf.set_xy(curr_x + 3, y_dinamica)
         pdf.set_font("Arial", 'B', 8)
-        pdf.cell(ancho_util, 4, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
+        # Forzamos multi_cell aquí también por si los alérgenos fueran largos
+        pdf.multi_cell(ancho_util_texto, 3.5, f"CONTIENE: {str(datos['alergenos']).upper()}", align='L')
         
         if datos['trazas']:
             pdf.set_x(curr_x + 3)
             pdf.set_font("Arial", 'I', 7)
-            pdf.cell(ancho_util, 3, f"Puede contener: {datos['trazas']}", ln=True)
+            pdf.multi_cell(ancho_util_texto, 3, f"Puede contener: {datos['trazas']}", align='L')
+        
+        y_dinamica = pdf.get_y() + 2
 
-        # 4. DATOS DE PESCA (MANTENEMOS COORDENADAS PARA CUADRO FIJO)
-        pdf.rect(curr_x, curr_y + 45, ancho_et, 15)
+        # 4. DATOS DE PESCA
+        pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
         pdf.set_font("Arial", 'B', 7.5)
-        pdf.set_xy(curr_x + 3, curr_y + 46); pdf.write(4, "ZONA DE CAPTURA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['zona']}")
-        pdf.set_xy(curr_x + 3, curr_y + 50); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "MÉTODO DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['metodo']}")
-        pdf.set_xy(curr_x + 3, curr_y + 54); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "ARTE DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['arte']}")
+        pdf.set_xy(curr_x + 3, y_dinamica + 1)
+        pdf.write(4, "ZONA DE CAPTURA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['zona']}\n")
+        pdf.set_x(curr_x + 3); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "MÉTODO DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['metodo']}\n")
+        pdf.set_x(curr_x + 3); pdf.set_font("Arial", 'B', 7.5); pdf.write(4, "ARTE DE PESCA: "); pdf.set_font("Arial", '', 7.5); pdf.write(4, f"{datos['arte']}\n")
+        
+        y_dinamica = pdf.get_y() + 1.5
 
         # 5. CONSERVACIÓN
-        pdf.rect(curr_x, curr_y + 61, ancho_et, 9)
-        pdf.set_xy(curr_x + 2, curr_y + 62)
+        pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
+        pdf.set_xy(curr_x + 2, y_dinamica + 1)
         pdf.set_font("Arial", 'B', 6.5)
         pdf.multi_cell(ancho_et - 4, 2.8, datos['mencion_conservacion'], align='C')
+        
+        y_dinamica = pdf.get_y() + 1.5
 
         # 6. LOTE Y FECHAS
-        pdf.rect(curr_x, curr_y + 71, ancho_et, 13)
-        pdf.set_xy(curr_x + 3, curr_y + 72); pdf.set_font("Arial", 'B', 11); pdf.cell(0, 5, f"LOTE: {datos['lote']}")
-        pdf.set_xy(curr_x + 3, curr_y + 78); pdf.set_font("Arial", 'B', 8.5)
+        pdf.line(curr_x, y_dinamica, curr_x + ancho_et, y_dinamica)
+        pdf.set_xy(curr_x + 3, y_dinamica + 1)
+        pdf.set_font("Arial", 'B', 10.5); pdf.cell(0, 5, f"LOTE: {datos['lote']}", ln=True)
+        pdf.set_x(curr_x + 3); pdf.set_font("Arial", 'B', 8.5)
         f_desc = f"  DESCONG: {datos['f_des']}" if datos['f_des'] else ""
-        pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}")
+        pdf.cell(0, 5, f"F. Caducidad: {datos['f_cad']}{f_desc}", ln=True)
 
-        # 7. EXPEDIDOR Y ÓVALO (PARTE INFERIOR)
-        pdf.set_xy(curr_x + 2, curr_y + 85)
+        # 7. PIE (Expedidor y Óvalo)
+        pos_pie = curr_y + 85
+        pdf.line(curr_x, pos_pie - 1, curr_x + ancho_et, pos_pie - 1)
+        pdf.set_xy(curr_x + 2, pos_pie)
         pdf.set_font("Arial", '', 6) 
+        # Reducimos ancho del expedidor para que no "empuje" al óvalo
         pdf.multi_cell(60, 2.5, f"{datos['expedidor_info']}", align='L')
 
-        pdf.ellipse(curr_x + 64, curr_y + 84, 17, 9)
-        pdf.set_xy(curr_x + 64, curr_y + 85); pdf.set_font("Arial", 'B', 6); pdf.cell(17, 2, "ES", align='C', ln=True)
+        pdf.ellipse(curr_x + 64, pos_pie - 1, 17, 9)
+        pdf.set_xy(curr_x + 64, pos_pie); pdf.set_font("Arial", 'B', 6); pdf.cell(17, 2, "ES", align='C', ln=True)
         pdf.set_x(curr_x + 64); pdf.cell(17, 2, str(datos['ovalo']), align='C', ln=True)
         pdf.set_x(curr_x + 64); pdf.cell(17, 2, "CE", align='C')
 
+        # Control de posición para la siguiente etiqueta
         if (i + 1) % 2 == 0: curr_x = mx; curr_y += alto_et + sep
         else: curr_x += ancho_et + sep
         if (i + 1) % 6 == 0 and (i + 1) < cantidad: pdf.add_page(); curr_x, curr_y = mx, my
@@ -236,6 +254,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
