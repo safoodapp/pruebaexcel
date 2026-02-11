@@ -200,7 +200,7 @@ def generar_pdf_a4(datos, cantidad):
             pdf.add_page()
             curr_x, curr_y = mx, my
 
-return pdf.output(dest='S').encode('latin-1', errors='ignore')         
+    return pdf.output(dest='S').encode('latin-1', errors='ignore')         
 # =========================================================
 # 5. BOTÓN GENERAR
 # =========================================================
@@ -252,6 +252,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
