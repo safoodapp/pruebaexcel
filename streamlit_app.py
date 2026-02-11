@@ -126,15 +126,18 @@ def generar_pdf_a4(datos, cantidad):
         pdf.set_xy(curr_x + 4, y_linea1 + 1.5)
 
         if datos['ingredientes'] and str(datos['ingredientes']).strip():
-        # Solo el título en negrita
-        pdf.set_font("Arial", 'B', 7.5)
-        pdf.cell(22, 3.5, "INGREDIENTES:", ln=0)
 
-        # Texto normal en la misma línea
-        pdf.set_font("Arial", '', 7.5)
-        pdf.multi_cell(ancho_util - 22, 3.5, f" {datos['ingredientes']}", align='L')
+            # Solo el título en negrita
+            pdf.set_font("Arial", 'B', 7.5)
+            pdf.cell(22, 3.5, "INGREDIENTES:", ln=0)
+
+            # Texto normal en la misma línea
+            pdf.set_font("Arial", '', 7.5)
+            pdf.multi_cell(ancho_util - 22, 3.5, f" {datos['ingredientes']}", align='L')
+
         else:
-        pdf.set_y(pdf.get_y() + 2)
+            pdf.set_y(pdf.get_y() + 2)
+
         
         # Alérgenos (siempre debajo de ingredientes)
         pdf.set_x(curr_x + 4)
@@ -255,6 +258,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
