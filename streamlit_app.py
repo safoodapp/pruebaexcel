@@ -6,7 +6,11 @@ from fpdf import FPDF
 # =========================================================
 # 1. CONFIGURACIÓN Y ESTILO (ACCESIBILIDAD +50 AÑOS)
 # =========================================================
-st.set_page_config(page_title="Generador de Etiquetas de Santiago y Santiago", layout="wide")
+st.set_page_config(
+    page_title="Generador de Etiquetas de Santiago y Santiago", 
+    layout="wide", 
+    initial_sidebar_state="auto" 
+)
 
 # CSS para agrandar textos, botones e inputs
 st.markdown("""
@@ -54,15 +58,20 @@ df_exped = load_sheet("EXPEDIDORES")
 df_trazas_config = load_sheet("TRAZAS_CONFIG")
 
 # =========================================================
-# 3. LÓGICA DE INTERFAZ
+# 3. INTERFAZ DE USUARIO (SIDEBAR VOLUNTARIO)
 # =========================================================
 st.title("🏷️ Generador de Etiquetas de Santiago y Santiago")
 
-# Botón Nueva Etiqueta (Reset)
-if st.sidebar.button("🔄 NUEVA ETIQUETA / LIMPIAR"):
-    st.rerun()
+# Esto asegura que el botón viva DENTRO del sidebar siempre
+with st.sidebar:
+    st.header("Menú")
+    if st.button("🔄 NUEVA ETIQUETA / LIMPIAR"):
+        st.rerun()
+    st.write("---")
+    st.caption("Puedes cerrar esta barra con la flecha de arriba a la izquierda.")
 
-col1, col2 = st.columns([1, 1])
+# Aquí ya siguen tus columnas normales del cuerpo principal
+col1, col2 = st.columns(2)
 
 with col1:
     nombre_base = st.selectbox("Producto", preparar_lista(df_productos, col_name="NOMBRE_BASE"))
@@ -253,6 +262,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             pdf_bytes = generar_pdf_a4(info_etiqueta, cantidad)
             st.success("✅ ¡Etiquetas listas!")
             st.download_button("📥 DESCARGAR PDF PARA IMPRIMIR", data=pdf_bytes, file_name=f"etiquetas_{lote}.pdf", mime="application/pdf")
+
 
 
 
