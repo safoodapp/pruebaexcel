@@ -83,7 +83,7 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1)
 # =========================================================
 # 3. FUNCIÓN DEL PDF (DISEÑO DINÁMICO)
 # =========================================================
-defdef generar_pdf_final(datos, cantidad):
+def generar_pdf_final(datos, cantidad):
     pdf = FPDF(orientation='P', unit='mm', format=(100, 150))
     pdf.set_auto_page_break(auto=False)
     
@@ -232,6 +232,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
 
         st.success("✅ Etiquetas listas")
         st.download_button("📥 DESCARGAR PDF", pdf_bytes, f"etiquetas_{lote}.pdf", "application/pdf")
+
 
 
 
