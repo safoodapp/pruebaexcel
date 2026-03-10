@@ -214,6 +214,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
         elif "DESCONGELADO" in estado.upper():
             mencion_cons = "CONSERVAR ENTRE 0-4ºC. NO VOLVER A CONGELAR."
 
+        # DENTRO DEL BOTÓN 'GENERAR ETIQUETAS'
         pdf_bytes = generar_pdf_final({
             "nombre_base": nombre_base,
             "forma": forma if forma != "Selecciona una opción" else "",
@@ -223,15 +224,21 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             "ingredientes": limpiar_nan(prod_row["INGREDIENTES"]),
             "alergenos": alergeno_p,
             "trazas": trazas_f,
-            "metodo": metodo, "zona": zona, "arte": arte, "pais": pais_orig,
+            "metodo": metodo, 
+            "zona": zona, 
+            "arte": arte, 
+            "pais": pais_orig,
             "mencion_conservacion": mencion_cons,
             "f_cad": fecha_cad.strftime("%d/%m/%Y"),
             "f_des": fecha_descong.strftime("%d/%m/%Y") if fecha_descong else None,
+            # ESTA ES LA LÍNEA QUE CAUSA EL ERROR SI FALTA O ESTÁ MAL ESCRITA:
+            "expedidor_info": df_exped.iloc[0]["EXPEDIDOR"] if not df_exped.empty else "PESCADOS SANTIAGO S.L.",
             "ovalo": df_exped.iloc[0]["OVALO_SANITARIO"] if not df_exped.empty else "12.345/M"
         }, cantidad)
 
         st.success("✅ Etiquetas listas")
         st.download_button("📥 DESCARGAR PDF", pdf_bytes, f"etiquetas_{lote}.pdf", "application/pdf")
+
 
 
 
