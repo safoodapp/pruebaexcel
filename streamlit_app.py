@@ -83,7 +83,7 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1)
 # =========================================================
 # 3. FUNCIÓN DEL PDF (DISEÑO DINÁMICO)
 # =========================================================
-def generar_pdf_final(datos, cantidad):
+defdef generar_pdf_final(datos, cantidad):
     pdf = FPDF(orientation='P', unit='mm', format=(100, 150))
     pdf.set_auto_page_break(auto=False)
     
@@ -92,7 +92,7 @@ def generar_pdf_final(datos, cantidad):
         mx = 8
         ancho_util = 100 - (mx * 2)
 
-        # CABECERA: Producto (Izquierda) y Lote (Derecha)
+        # CABECERA (Producto y Lote) - Se queda igual, está perfecta
         pdf.set_xy(mx, 10)
         pdf.set_font("Arial", 'B', 15)
         txt_prod = f"{datos['nombre_base']} {datos['forma']}".strip()
@@ -106,27 +106,28 @@ def generar_pdf_final(datos, cantidad):
         pdf.set_font("Arial", '', 11)
         pdf.cell(55, 5, f"producto {datos['mencion_estado'].lower()}", ln=True)
 
-        # Cuadro LOTE
+        pdf.set_line_width(0.4)
         pdf.rect(65, 10, 28, 20)
         pdf.set_xy(65, 12)
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(28, 5, "LOTE:", align='C', ln=True)
-        pdf.set_x(65)
         pdf.set_font("Arial", 'B', 12)
+        pdf.set_x(65)
         pdf.cell(28, 8, datos['lote'], align='C')
         
-        y_pos = 35
-        pdf.line(mx, y_pos, 100-mx, y_pos)
-        y_pos += 5
-
-        # INGREDIENTES Y ALÉRGENOS (DINÁMICO)
+        # CUERPO DINÁMICO
+        pdf.set_line_width(0.2)
+        pdf.line(mx, 35, 100-mx, 35)
+        
+        y_pos = 38
         if datos['ingredientes']:
             pdf.set_xy(mx, y_pos)
             pdf.set_font("Arial", 'B', 9)
-            pdf.write(5, "INGREDIENTES: ")
+            pdf.cell(25, 5, "INGREDIENTES: ", ln=0)
             pdf.set_font("Arial", '', 9)
-            pdf.multi_cell(ancho_util - 25, 5, datos['ingredientes'], align='J')
-            y_pos = pdf.get_y() + 3
+            # Usamos multi_cell con un interlineado un poco menor (4) para ahorrar espacio
+            pdf.multi_cell(ancho_util - 25, 4, datos['ingredientes'], align='J')
+            y_pos = pdf.get_y() + 2
 
         pdf.set_xy(mx, y_pos)
         pdf.set_font("Arial", 'B', 11)
@@ -137,32 +138,34 @@ def generar_pdf_final(datos, cantidad):
             pdf.set_font("Arial", 'I', 9)
             pdf.cell(ancho_util, 5, f"Puede contener trazas de: {datos['trazas']}", ln=True)
         
-        y_pos = pdf.get_y() + 4
+        # --- BLOQUE TRAZABILIDAD (Bajamos un poco para que no se pise) ---
+        y_pos = 72 
         pdf.line(mx, y_pos, 100-mx, y_pos)
-        y_pos += 5
-
-        # TRAZABILIDAD
+        y_pos += 3
         pdf.set_xy(mx, y_pos)
         pdf.set_font("Arial", 'B', 10)
+        
         if "acuicultura" not in str(datos['metodo']).lower():
-            pdf.cell(ancho_util, 6, f"ZONA DE CAPTURA: {datos['zona']}", ln=True, align='C')
+            pdf.cell(ancho_util, 5, f"ZONA DE CAPTURA: {datos['zona']}", ln=True, align='C')
             pdf.set_x(mx)
-            pdf.cell(ancho_util, 6, f"ARTE DE PESCA: {datos['arte']}", ln=True, align='C')
+            pdf.cell(ancho_util, 5, f"ARTE DE PESCA: {datos['arte']}", ln=True, align='C')
         
         pdf.set_x(mx)
-        pdf.cell(ancho_util, 6, f"MÉTODO DE PESCA: {datos['metodo']}", ln=True, align='C')
+        pdf.cell(ancho_util, 5, f"MÉTODO DE PESCA: {datos['metodo']}", ln=True, align='C')
         pdf.set_x(mx)
-        pdf.cell(ancho_util, 6, f"PAÍS DE ORIGEN: {datos['pais']}", ln=True, align='C')
+        pdf.cell(ancho_util, 5, f"PAÍS DE ORIGEN: {datos['pais']}", ln=True, align='C')
 
-        # CONSERVACIÓN
-        pdf.line(mx, 100, 100-mx, 100)
-        pdf.set_xy(mx, 103)
-        pdf.set_font("Arial", 'B', 9)
+        # --- CONSERVACIÓN (Le damos su espacio fijo) ---
+        y_pos = 98
+        pdf.line(mx, y_pos, 100-mx, y_pos)
+        pdf.set_xy(mx, y_pos + 3)
+        pdf.set_font("Arial", 'B', 9.5)
         pdf.multi_cell(ancho_util, 4.5, datos['mencion_conservacion'], align='C')
 
-        # FECHAS
-        pdf.line(mx, 122, 100-mx, 122)
-        pdf.set_xy(mx, 125)
+        # --- FECHAS ---
+        y_pos = 120
+        pdf.line(mx, y_pos, 100-mx, y_pos)
+        pdf.set_xy(mx, y_pos + 3)
         if datos['f_des']:
             pdf.set_font("Arial", 'B', 10)
             pdf.cell(ancho_util, 6, f"F. DESCONGELACIÓN: {datos['f_des']}", align='C', ln=True)
@@ -171,20 +174,19 @@ def generar_pdf_final(datos, cantidad):
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(ancho_util, 8, f"F. CAD: {datos['f_cad']}", align='C')
 
-        # PIE
-        pdf.line(mx, 140, 100-mx, 140)
-        pdf.set_xy(mx, 142)
-        pdf.set_font("Arial", '', 7)
-        info_exp = df_exped.iloc[0]["EXPEDIDOR"] if not df_exped.empty else "PESCADOS SANTIAGO S.L."
-        pdf.multi_cell(ancho_util - 30, 3, info_exp)
+        # --- PIE (Subimos 2mm para que no se corte) ---
+        y_pos = 138
+        pdf.line(mx, y_pos, 100-mx, y_pos)
+        pdf.set_xy(mx, y_pos + 2)
+        pdf.set_font("Arial", '', 7.5)
+        pdf.multi_cell(ancho_util - 30, 3.5, datos['expedidor_info'])
         
-        pdf.ellipse(72, 141, 22, 8)
-        pdf.set_xy(72, 142)
-        pdf.set_font("Arial", 'B', 6)
-        pdf.cell(22, 2, "ES", align='C', ln=True)
+        pdf.ellipse(72, y_pos + 2, 22, 9)
+        pdf.set_xy(72, y_pos + 3.5)
+        pdf.set_font("Arial", 'B', 6.5)
+        pdf.cell(22, 2.5, "ES", align='C', ln=True)
         pdf.set_x(72)
-        ov = df_exped.iloc[0]["OVALO_SANITARIO"] if not df_exped.empty else "12.345/M"
-        pdf.cell(22, 2, ov, align='C')
+        pdf.cell(22, 2.5, datos['ovalo'], align='C')
 
     return pdf.output(dest='S').encode('latin-1', errors='ignore')
 
@@ -230,6 +232,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
 
         st.success("✅ Etiquetas listas")
         st.download_button("📥 DESCARGAR PDF", pdf_bytes, f"etiquetas_{lote}.pdf", "application/pdf")
+
 
 
 
