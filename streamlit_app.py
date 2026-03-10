@@ -93,7 +93,7 @@ cantidad = st.number_input("Número de etiquetas", min_value=1, value=1, key="p1
 # =========================================================
 # 4. EDICIÓN DE ETIQUETA (ACTUALIZADO A 100x150mm)
 # =========================================================
-def generar_pdf_etiquetadora(datos, cantidad):
+def generar_pdf_vrittech(datos, cantidad, ancho_mm=100, alto_mm=150):
     # Definimos el tamaño de la etiqueta en mm
     ancho_et, alto_et = 100, 150
     
@@ -245,6 +245,7 @@ if st.button("🚀 GENERAR ETIQUETAS"):
             file_name=f"etiqueta_{lote}.pdf",
             mime="application/pdf"
         )
+
 
 
 
