@@ -95,7 +95,7 @@ def generar_pdf_final(datos, cantidad):
         # CABECERA (Producto y Lote) - Se queda igual, está perfecta
         pdf.set_xy(mx, 10)
         pdf.set_font("Arial", 'B', 15)
-        txt_prod = f"{datos['nombre_base']} {datos['forma']}".strip()
+        txt_prod = f"{datos['nombre_base']}".strip()
         pdf.multi_cell(55, 7, txt_prod.upper(), align='L')
         
         pdf.set_x(mx)
@@ -111,7 +111,7 @@ def generar_pdf_final(datos, cantidad):
         pdf.set_xy(65, 12)
         pdf.set_font("Arial", 'B', 9)
         pdf.cell(28, 5, "LOTE:", align='C', ln=True)
-        pdf.set_font("Arial", 'B', 12)
+        pdf.set_font("Arial", 'B', 16)
         pdf.set_x(65)
         pdf.cell(28, 8, datos['lote'], align='C')
         
@@ -126,16 +126,16 @@ def generar_pdf_final(datos, cantidad):
             pdf.cell(25, 5, "INGREDIENTES: ", ln=0)
             pdf.set_font("Arial", '', 9)
             # Usamos multi_cell con un interlineado un poco menor (4) para ahorrar espacio
-            pdf.multi_cell(ancho_util - 25, 4, datos['ingredientes'], align='J')
+            pdf.multi_cell(ancho_util - 25, 4, datos['ingredientes'], align='C')
             y_pos = pdf.get_y() + 2
 
         pdf.set_xy(mx, y_pos)
-        pdf.set_font("Arial", 'B', 11)
+        pdf.set_font("Arial", 'B', 8)
         pdf.cell(ancho_util, 6, f"CONTIENE: {str(datos['alergenos']).upper()}", ln=True)
         
         if datos['trazas']:
             pdf.set_x(mx)
-            pdf.set_font("Arial", 'I', 9)
+            pdf.set_font("Arial", 'I', 8)
             pdf.multi_cell(ancho_util, 4, f"Puede contener trazas de: {datos['trazas']}", align='L')
         
         # --- BLOQUE TRAZABILIDAD (Bajamos un poco para que no se pise) ---
