@@ -104,7 +104,7 @@ def generar_pdf_final(datos, cantidad):
         
         pdf.set_x(mx)
         pdf.set_font("Arial", '', 11)
-        pdf.cell(55, 5, f"producto {datos['mencion_estado'].lower()}", ln=True)
+        pdf.cell(55, 5, f"producto {datos['forma'].lower()}", ln=True)
 
         pdf.set_line_width(0.4)
         pdf.rect(65, 10, 28, 20)
@@ -136,7 +136,7 @@ def generar_pdf_final(datos, cantidad):
         if datos['trazas']:
             pdf.set_x(mx)
             pdf.set_font("Arial", 'I', 9)
-            pdf.cell(ancho_util, 5, f"Puede contener trazas de: {datos['trazas']}", ln=True)
+            pdf.multi_cell(ancho_util, 4, f"Puede contener trazas de: {datos['trazas']}", align='L')
         
         # --- BLOQUE TRAZABILIDAD (Bajamos un poco para que no se pise) ---
         y_pos = 72 
@@ -146,14 +146,32 @@ def generar_pdf_final(datos, cantidad):
         pdf.set_font("Arial", 'B', 10)
         
         if "acuicultura" not in str(datos['metodo']).lower():
-            pdf.cell(ancho_util, 5, f"ZONA DE CAPTURA: {datos['zona']}", ln=True, align='C')
+            # ZONA DE CAPTURA
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(pdf.get_string_width("ZONA DE CAPTURA: "), 5, "ZONA DE CAPTURA: ", align='L')
+            pdf.set_font("Arial", '', 10)
+            pdf.cell(0, 5, datos['zona'], ln=True, align='L')
             pdf.set_x(mx)
-            pdf.cell(ancho_util, 5, f"ARTE DE PESCA: {datos['arte']}", ln=True, align='C')
+            
+            # ARTE DE PESCA
+            pdf.set_font("Arial", 'B', 10)
+            pdf.cell(pdf.get_string_width("ARTE DE PESCA: "), 5, "ARTE DE PESCA: ", align='L')
+            pdf.set_font("Arial", '', 10)
+            pdf.cell(0, 5, datos['arte'], ln=True, align='L')
+            pdf.set_x(mx)
         
+        # MÉTODO DE PESCA
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(pdf.get_string_width("MÉTODO DE PESCA: "), 5, "MÉTODO DE PESCA: ", align='L')
+        pdf.set_font("Arial", '', 10)
+        pdf.cell(0, 5, datos['metodo'], ln=True, align='L')
         pdf.set_x(mx)
-        pdf.cell(ancho_util, 5, f"MÉTODO DE PESCA: {datos['metodo']}", ln=True, align='C')
-        pdf.set_x(mx)
-        pdf.cell(ancho_util, 5, f"PAÍS DE ORIGEN: {datos['pais']}", ln=True, align='C')
+        
+        # PAÍS DE ORIGEN
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(pdf.get_string_width("PAÍS DE ORIGEN: "), 5, "PAÍS DE ORIGEN: ", align='L')
+        pdf.set_font("Arial", '', 10)
+        pdf.cell(0, 5, datos['pais'], ln=True, align='L')
 
         # --- CONSERVACIÓN (Le damos su espacio fijo) ---
         y_pos = 98
@@ -161,6 +179,7 @@ def generar_pdf_final(datos, cantidad):
         pdf.set_xy(mx, y_pos + 3)
         pdf.set_font("Arial", 'B', 9.5)
         pdf.multi_cell(ancho_util, 4.5, datos['mencion_conservacion'], align='C')
+        pdf.cell(55, 5, f"producto {datos['mencion_estado'].lower()}", ln=True)
 
         # --- FECHAS ---
         y_pos = 120
@@ -175,7 +194,7 @@ def generar_pdf_final(datos, cantidad):
         pdf.cell(ancho_util, 8, f"F. CAD: {datos['f_cad']}", align='C')
 
         # --- PIE (Subimos 2mm para que no se corte) ---
-        y_pos = 138
+        y_pos = 135
         pdf.line(mx, y_pos, 100-mx, y_pos)
         pdf.set_xy(mx, y_pos + 2)
         pdf.set_font("Arial", '', 7.5)
@@ -209,11 +228,11 @@ if st.button("🚀 GENERAR ETIQUETAS"):
 
         # Conservación
         mencion_cons = "CONSERVAR ENTRE 0-4ºC. COCINAR ANTES DE CONSUMIR."
-        if "CONGELADO" in estado.upper():
-            mencion_cons = "CONSERVAR A -18ºC. NO VOLVER A CONGELAR."
-        elif "DESCONGELADO" in estado.upper():
+        if"DESCONGELADO" in estado.upper():
             mencion_cons = "CONSERVAR ENTRE 0-4ºC. NO VOLVER A CONGELAR."
-
+        elif "CONGELADO" in estado.upper():
+            mencion_cons = "CONSERVAR A -18ºC, UNA VEZ DESCONGELADO NO VOLVER A CONGELAR."
+      
         # DENTRO DEL BOTÓN 'GENERAR ETIQUETAS'
         pdf_bytes = generar_pdf_final({
             "nombre_base": nombre_base,
