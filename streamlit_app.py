@@ -48,7 +48,7 @@ def preparar_lista(df, col_name=None):
 # =========================================================
 # 2. INTERFAZ DE USUARIO
 # =========================================================
-st.title("🏷️ Generador de Etiquetas Profesional")
+st.title("🏷️ Generador de Etiquetas Santiago y Santiago")
 
 c1, c2 = st.columns(2)
 with c1: nombre_base = st.selectbox("Producto", preparar_lista(df_productos, "NOMBRE_BASE"))
