@@ -1,207 +1,149 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, timedelta
-from fpdf import FPDF
+from datetime import datetime, timedelta
+from docxtpl import DocxTemplate
+import base64
+import os
+import locale
 
-# =========================================================
-# 1. CONFIGURACIÓN Y CARGA DE DATOS (Basado en tu Excel 'ETIQUETA')
-# =========================================================
-st.set_page_config(page_title="Generador Santiago y Santiago", layout="wide")
-
-# ID de tu documento 'ETIQUETA'
-SPREADSHEET_ID = "1gMEnVHqQmTqfhwMWmyybliH_ar4veAFq179FKpU6ZTA"
-
-# GIDs confirmados de tus hojas
-GIDS = {
-    "PRODUCTOS": "0", 
-    "FORMAS_TRANSFORMACION": "1141842769", 
-    "ESTADOS_PRODUCTO": "57656075",
-    "METODO_PRODUCCION": "1900442476", 
-    "ZONAS_FAO": "907306114", 
-    "ARTES_PESCA": "1510153858",
-    "PAIS_ORIGEN": "93498864" # GID detectado para la hoja de países
-}
-
-def limpiar_nan(texto):
-    txt = str(texto)
-    return "" if txt.lower() == "nan" or not txt.strip() or txt == "0" else txt
-
-@st.cache_data(ttl=60)
-def load_sheet(name):
+# Intentar configurar idioma para fechas
+try:
+    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+except:
     try:
-        url = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid={GIDS[name]}"
-        return pd.read_csv(url)
+        locale.setlocale(locale.LC_TIME, 'es_ES')
     except:
-        return pd.DataFrame()
+        pass
 
-# Carga de datos desde tus hojas de Google
-df_productos = load_sheet("PRODUCTOS")
-df_transform = load_sheet("FORMAS_TRANSFORMACION")
-df_estados = load_sheet("ESTADOS_PRODUCTO")
-df_metodo = load_sheet("METODO_PRODUCCION")
-df_zonas = load_sheet("ZONAS_FAO")
-df_artes = load_sheet("ARTES_PESCA")
-df_paises = load_sheet("PAIS_ORIGEN")
+# Configurar página
+st.set_page_config(page_title="Etiquetas Santiago y Santiago V2", layout="centered")
 
-def preparar_lista(df, col_name=None):
-    if df is None or df.empty: return ["Selecciona una opción"]
-    items = df[col_name].dropna().unique().tolist() if col_name else df.iloc[:, 0].dropna().unique().tolist()
-    return ["Selecciona una opción"] + sorted([str(i) for i in items])
+# Pantalla inicial
+if "mostrar_formulario" not in st.session_state:
+    st.session_state.mostrar_formulario = False
 
-# =========================================================
-# 2. INTERFAZ DE USUARIO
-# =========================================================
-st.title("🏷️ Generador de Etiquetas Santiago y Santiago")
+if not st.session_state.mostrar_formulario:
+    st.markdown("<h1 style='text-align:center;'>Etiquetas de Santiago y Santiago</h1>", unsafe_allow_html=True)
+    if st.button("➕ Nueva etiqueta"):
+        st.session_state.mostrar_formulario = True
+    st.stop()
 
-with st.container():
-    c1, c2 = st.columns(2)
-    with c1: 
-        nombre_base = st.selectbox("Producto", preparar_lista(df_productos, "NOMBRE_BASE"))
-    with c2: 
-        forma = st.selectbox("Forma de Transformación", preparar_lista(df_transform))
+# --- CARGAR DATOS (NUEVA URL GOOGLE SHEETS) ---
+# He actualizado la URL a la que mencionaste
+url = "https://docs.google.com/spreadsheets/d/1gMEnVHqQmTqfhwMWmyybliH_ar4veAFq179FKpU6ZTA/edit?gid=57656075#gid=57656075"
 
-    c3, c4, c5 = st.columns(3)
-    with c3: 
-        estado = st.selectbox("Estado", preparar_lista(df_estados))
-    with c4: 
-        metodo = st.selectbox("Producción", preparar_lista(df_metodo))
-    with c5: 
-        pais_orig = st.selectbox("País de Origen", preparar_lista(df_paises))
+try:
+    df = pd.read_csv(url)
+except Exception as e:
+    st.error(f"Error al cargar datos desde Google Sheets: {e}")
+    st.stop()
 
-    zona_sel, arte_sel = "N/A", "N/A"
-    if "acuicultura" not in str(metodo).lower() and metodo != "Selecciona una opción":
-        c6, c7 = st.columns(2)
-        with c6: zona_sel = st.selectbox("Zona FAO", preparar_lista(df_zonas))
-        with c7: arte_sel = st.selectbox("Arte de Pesca", preparar_lista(df_artes))
+# Preparar listas desplegables
+def opciones_columna(col):
+    try:
+        lista = sorted([str(x) for x in df[col].dropna().unique() if isinstance(x, str)])
+        return ["Selecciona una opción"] + lista
+    except:
+        return ["Selecciona una opción"]
 
-    lote = st.text_input("🔢 Número de Lote")
+productos = opciones_columna("denominacion_comercial")
+zonas = opciones_columna("zona_captura")
+paises = opciones_columna("pais_origen")
+artes = opciones_columna("arte_pesca")
+formas_metodo = opciones_columna("forma_capturado") # Método de pesca
 
-    st.subheader("📅 Fechas")
-    fe1, fe2, fe3 = st.columns(3)
-    with fe1: f_elab = st.date_input("Fecha de Elaboración", value=date.today())
-    with fe2:
-        f_des_val = None
-        if "DESCONGELADO" in str(estado).upper():
-            f_des_val = st.date_input("Fecha de Descongelación", value=date.today())
-    with fe3:
-        f_cad_val = st.date_input("Fecha de Caducidad", value=date.today() + timedelta(days=7))
+# --- FORMULARIO ---
+st.header("🧾 Crear nueva etiqueta")
 
-# =========================================================
-# 3. LÓGICA DEL PDF (10x16 CM - ANTI SALTO DE PÁGINA)
-# =========================================================
-def generar_pdf(d):
-    pdf = FPDF(orientation='P', unit='mm', format=(100, 160))
-    pdf.set_auto_page_break(auto=False) # Bloqueo estricto de la página 2
-    pdf.add_page()
-    pdf.rect(5, 5, 90, 150) # Marco exterior
+# 1. Selección de Producto
+producto_sel = st.selectbox("Producto", productos)
 
-    # CABECERA
-    pdf.set_font("Arial", 'B', 16)
-    pdf.set_xy(8, 12)
-    pdf.multi_cell(60, 7, d['nombre'].upper())
+if producto_sel != "Selecciona una opción":
+    fila = df[df["denominacion_comercial"] == producto_sel].iloc[0]
+    nombre_cientifico = fila.get("nombre_cientifico", "")
+    ingredientes = fila.get("ingredientes", "")
+    pueden_contener = fila.get("alergenos", "") # O "PUEDE_CONTENER" según tu Excel
+else:
+    nombre_cientifico = ""
+    ingredientes = ""
+    pueden_contener = ""
+
+st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
+st.text_area("Ingredientes", value=ingredientes, disabled=True)
+st.text_input("Puede contener trazas de", value=pueden_contener)
+
+# 2. SELECTORES NUEVOS (Estado, Transformación, Fechas)
+col1, col2 = st.columns(2)
+
+with col1:
+    estado_prod = st.selectbox("Estado del producto (Define plantilla)", ["CONGELADO", "FRESCO", "DESCONGELADO"])
+    forma_trans = st.text_input("Forma de transformación", placeholder="Ej: Eviscerado, Fileteado...")
+
+with col2:
+    fecha_elab = st.date_input("Fecha de elaboración", format="DD/MM/YYYY")
+    lote = st.text_input("Lote")
+
+# 3. Datos de Origen
+forma_pesca = st.radio("Método de producción/pesca", formas_metodo, horizontal=True)
+
+if "acui" in forma_pesca.lower():
+    zona = "N/A"
+    arte = "N/A"
+    st.info("Producto de ACUICULTURA: No requiere Zona FAO ni Arte de pesca.")
+else:
+    zona = st.selectbox("Zona de captura", zonas)
+    arte = st.selectbox("Arte de pesca", artes)
+
+pais = st.selectbox("País de origen", paises)
+
+# 4. Lógica de Caducidad
+usar_descongelacion = st.checkbox("¿Es un producto descongelado? (Suma 3 días a caducidad)")
+if usar_descongelacion:
+    fecha_cad = fecha_elab + timedelta(days=3)
+    st.info(f"Caducidad calculada: {fecha_cad.strftime('%d/%m/%Y')}")
+else:
+    fecha_cad = st.date_input("Fecha de caducidad", format="DD/MM/YYYY")
+
+# --- BOTÓN GENERAR ---
+if st.button("✅ Generar etiqueta"):
+
+    # Mapeo de datos para la plantilla Word
+    campos = {
+        "DENOMINACION_COMERCIAL": producto_sel.upper(),
+        "nombre_cientifico": nombre_cientifico,
+        "forma_transformacion": forma_trans,
+        "ingredientes": ingredientes,
+        "PUEDE_CONTENER": pueden_contener,
+        "pais_origen": pais,
+        "zona_captura": zona,
+        "arte_pesca": arte,
+        "forma_captura": forma_pesca,
+        "estados_productos": estado_prod,
+        "lote": lote,
+        "fecha_elaboracion": fecha_elab.strftime("%d/%m/%Y"),
+        "fecha_caducidad": fecha_cad.strftime("%d/%m/%Y")
+    }
+
+    # Selección de plantilla dinámica
+    nombre_plantilla = f"FT PRODUCTO {estado_prod}.docx"
     
-    pdf.set_font("Arial", 'I', 10); pdf.set_x(8)
-    pdf.cell(60, 5, f"({d['cientifico']})", ln=True)
-    
-    # FORMA DE TRANSFORMACIÓN (Debajo del nombre científico)
-    pdf.set_font("Arial", '', 10); pdf.set_x(8)
-    pdf.cell(60, 5, d['forma'].lower(), ln=True)
+    if not os.path.exists(nombre_plantilla):
+        st.error(f"Error: No se encuentra el archivo de plantilla '{nombre_plantilla}'")
+    elif producto_sel == "Selecciona una opción" or not lote:
+        st.warning("Por favor, selecciona un producto e introduce un lote.")
+    else:
+        # Renderizar el documento
+        doc = DocxTemplate(nombre_plantilla)
+        doc.render(campos)
 
-    # RECUADRO LOTE (Fijo arriba derecha)
-    pdf.rect(70, 10, 22, 17)
-    pdf.set_xy(70, 11); pdf.set_font("Arial", '', 8); pdf.cell(22, 4, "LOTE:", align='C', ln=True)
-    pdf.set_font("Arial", 'B', 13); pdf.set_x(70); pdf.cell(22, 7, d['lote'], align='C')
+        # Guardar y ofrecer descarga
+        timestamp = datetime.now().strftime('%H%M%S')
+        nombre_archivo = f"ETIQUETA_{estado_prod}_{timestamp}.docx"
+        doc.save(nombre_archivo)
 
-    pdf.line(8, 35, 92, 35)
-    
-    # CUERPO DINÁMICO
-    y_dyn = 38
-    if d['ingredientes']:
-        pdf.set_xy(8, y_dyn)
-        pdf.set_font("Arial", 'B', 9); pdf.cell(25, 4, "INGREDIENTES: ")
-        pdf.set_font("Arial", '', 7.5); pdf.multi_cell(60, 3.5, d['ingredientes'])
-        y_dyn = pdf.get_y() + 2
-
-    if d['alergenos']:
-        pdf.set_xy(8, y_dyn)
-        pdf.set_font("Arial", 'B', 9); pdf.cell(0, 5, f"Puede contener trazas de: {d['alergenos']}", ln=True)
-        y_dyn = pdf.get_y() + 2
-    
-    pdf.line(8, y_dyn, 92, y_dyn)
-    y_dyn += 3
-
-    # TRAZABILIDAD
-    pdf.set_font("Arial", 'B', 9)
-    trazabilidad = [
-        ("ORIGEN:", d['pais']),
-        ("ZONA DE CAPTURA:", d['zona']), 
-        ("ARTE DE PESCA:", d['arte']), 
-        ("MÉTODO DE PESCA:", d['metodo'])
-    ]
-    for lab, val in trazabilidad:
-        if val and val not in ["N/A", "Selecciona una opción"]:
-            pdf.set_xy(8, y_dyn)
-            pdf.set_font("Arial", 'B', 9); pdf.cell(pdf.get_string_width(lab)+2, 4, lab)
-            pdf.set_font("Arial", '', 9); pdf.cell(0, 4, str(val), ln=True)
-            y_dyn += 4.5
-
-    # --- BLOQUES ANCLADOS AL FINAL (Evita que salte de hoja) ---
-    # Conservación
-    pdf.line(8, 92, 92, 92)
-    pdf.set_xy(8, 95); pdf.set_font("Arial", 'B', 9.5)
-    pdf.multi_cell(84, 4.5, d['mencion'], align='C')
-    pdf.set_font("Arial", '', 9); pdf.cell(84, 5, f"producto {d['estado'].lower()}", align='C', ln=True)
-
-    # Fechas
-    pdf.line(8, 114, 92, 114)
-    pdf.set_xy(8, 118); pdf.set_font("Arial", 'B', 10)
-    pdf.cell(84, 5, f"F. ELABORACIÓN: {d['f_el']}", align='C', ln=True)
-    if d['f_des']:
-        pdf.cell(84, 5, f"F. DESCONGELACIÓN: {d['f_des']}", align='C', ln=True)
-    pdf.set_font("Arial", 'B', 15); pdf.set_xy(8, 132)
-    pdf.cell(84, 10, f"F. CADUCIDAD: {d['f_cad']}", align='C', ln=True)
-
-    # Pie y Óvalo Sanitario
-    pdf.line(8, 142, 92, 142)
-    pdf.set_xy(8, 144); pdf.set_font("Arial", '', 7.5)
-    pdf.multi_cell(55, 3.5, "PESCADOS Y MARISCOS SANTIAGO Y SANTIAGO S.L.\nCalle Laguna del Marquesado 43C, 28021, Madrid")
-    
-    pdf.ellipse(72, 144, 18, 9)
-    pdf.set_xy(72, 145.5); pdf.set_font("Arial", 'B', 7)
-    pdf.cell(18, 3, "ES", align='C', ln=True)
-    pdf.set_x(72); pdf.cell(18, 3, "12.14276/M", align='C')
-
-    return pdf.output(dest='S').encode('latin-1', errors='ignore')
-
-# =========================================================
-# 4. BOTÓN DE DESCARGA
-# =========================================================
-if nombre_base != "Selecciona una opción" and lote:
-    row = df_productos[df_productos["NOMBRE_BASE"] == nombre_base].iloc[0]
-    
-    # Lógica de conservación corregida
-    mencion = "CONSERVAR ENTRE 0-4ºC. COCINAR ANTES DE CONSUMIR."
-    if "CONGELADO" in estado.upper(): 
-        mencion = "CONSERVAR A -18ºC. UNA VEZ DESCONGELADO NO VOLVER A CONGELAR."
-    elif "DESCONGELADO" in estado.upper(): 
-        mencion = "CONSERVAR ENTRE 0 Y 4ºC. NO VOLVER A CONGELAR."
-
-    pdf_generado = generar_pdf({
-        "nombre": nombre_base, "cientifico": row["NOMBRE_CIENTIFICO"],
-        "forma": forma, "estado": estado, "lote": lote,
-        "ingredientes": limpiar_nan(row["INGREDIENTES"]),
-        "alergenos": limpiar_nan(row["ALERGENOS"]),
-        "metodo": metodo, "zona": zona_sel, "arte": arte_sel, "pais": pais_orig,
-        "f_el": f_elab.strftime("%d/%m/%Y"),
-        "f_des": f_des_val.strftime("%d/%m/%Y") if f_des_val else None,
-        "f_cad": f_cad_val.strftime("%d/%m/%Y"),
-        "mencion": mencion
-    })
-
-    st.download_button(
-        label="📥 DESCARGAR ETIQUETA PDF",
-        data=pdf_generado,
-        file_name=f"Etiqueta_{lote}.pdf",
-        mime="application/pdf",
-        use_container_width=True
-    )
+        with open(nombre_archivo, "rb") as f:
+            base64_docx = base64.b64encode(f.read()).decode()
+            href = f'<a href="data:application/octet-stream;base64,{base64_docx}" download="{nombre_archivo}" style="text-decoration:none; border:2px solid #4CAF50; padding:10px; border-radius:5px; color:white; background-color:#4CAF50;">📥 Descargar Etiqueta {estado_prod}</a>'
+            st.markdown(href, unsafe_allow_html=True)
+        
+        st.success(f"Etiqueta para producto {estado_prod} generada con éxito.")
