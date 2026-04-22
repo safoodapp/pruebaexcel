@@ -30,7 +30,7 @@ if not st.session_state.mostrar_formulario:
 
 # --- CARGAR DATOS (NUEVA URL GOOGLE SHEETS) ---
 # He actualizado la URL a la que mencionaste
-url = "https://docs.google.com/spreadsheets/d/1gMEnVHqQmTqfhwMWmyybliH_ar4veAFq179FKpU6ZTA/edit?gid=57656075#gid=57656075"
+url = "https://docs.google.com/spreadsheets/d/1M-1zM8pxosv75N5gCtWaPkE1beQBOaMD/export?format=xlsx"
 
 try:
     df = pd.read_csv(url)
