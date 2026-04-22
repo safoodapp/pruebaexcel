@@ -2,148 +2,100 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from docxtpl import DocxTemplate
-import base64
 import os
-import locale
 
-# Intentar configurar idioma para fechas
-try:
-    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-except:
+st.set_page_config(page_title="Etiquetas Santiago y Santiago", layout="centered")
+
+# --- NUEVO LINK (FORMATO EXCEL PARA LEER TODO) ---
+URL_EXCEL = "https://docs.google.com/spreadsheets/d/1M-1zM8pxosv75N5gCtWaPkE1beQBOaMD/export?format=xlsx"
+
+@st.cache_data(ttl=60)
+def cargar_todo_el_excel(url):
     try:
-        locale.setlocale(locale.LC_TIME, 'es_ES')
-    except:
-        pass
+        # sheet_name=None carga TODAS las pestañas en un diccionario
+        dict_hojas = pd.read_excel(url, sheet_name=None)
+        return dict_hojas
+    except Exception as e:
+        st.error(f"Error al leer el Excel completo: {e}")
+        return None
 
-# Configurar página
-st.set_page_config(page_title="Etiquetas Santiago y Santiago V2", layout="centered")
+hojas = cargar_todo_el_excel(URL_EXCEL)
 
-# Pantalla inicial
-if "mostrar_formulario" not in st.session_state:
-    st.session_state.mostrar_formulario = False
-
-if not st.session_state.mostrar_formulario:
-    st.markdown("<h1 style='text-align:center;'>Etiquetas de Santiago y Santiago</h1>", unsafe_allow_html=True)
-    if st.button("➕ Nueva etiqueta"):
-        st.session_state.mostrar_formulario = True
-    st.stop()
-
-# --- CARGAR DATOS (NUEVA URL GOOGLE SHEETS) ---
-# He actualizado la URL a la que mencionaste
-url = "https://docs.google.com/spreadsheets/d/1M-1zM8pxosv75N5gCtWaPkE1beQBOaMD/export?format=xlsx"
-
-try:
-    df = pd.read_csv(url)
-except Exception as e:
-    st.error(f"Error al cargar datos desde Google Sheets: {e}")
-    st.stop()
-
-# Preparar listas desplegables
-def opciones_columna(col):
-    try:
-        lista = sorted([str(x) for x in df[col].dropna().unique() if isinstance(x, str)])
-        return ["Selecciona una opción"] + lista
-    except:
-        return ["Selecciona una opción"]
-
-productos = opciones_columna("denominacion_comercial")
-zonas = opciones_columna("zona_captura")
-paises = opciones_columna("pais_origen")
-artes = opciones_columna("arte_pesca")
-formas_metodo = opciones_columna("forma_capturado") # Método de pesca
-
-# --- FORMULARIO ---
-st.header("🧾 Crear nueva etiqueta")
-
-# 1. Selección de Producto
-producto_sel = st.selectbox("Producto", productos)
-
-if producto_sel != "Selecciona una opción":
-    fila = df[df["denominacion_comercial"] == producto_sel].iloc[0]
-    nombre_cientifico = fila.get("nombre_cientifico", "")
-    ingredientes = fila.get("ingredientes", "")
-    pueden_contener = fila.get("alergenos", "") # O "PUEDE_CONTENER" según tu Excel
-else:
-    nombre_cientifico = ""
-    ingredientes = ""
-    pueden_contener = ""
-
-st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
-st.text_area("Ingredientes", value=ingredientes, disabled=True)
-st.text_input("Puede contener trazas de", value=pueden_contener)
-
-# 2. SELECTORES NUEVOS (Estado, Transformación, Fechas)
-col1, col2 = st.columns(2)
-
-with col1:
-    estado_prod = st.selectbox("Estado del producto (Define plantilla)", ["CONGELADO", "FRESCO", "DESCONGELADO"])
-    forma_trans = st.text_input("Forma de transformación", placeholder="Ej: Eviscerado, Fileteado...")
-
-with col2:
-    fecha_elab = st.date_input("Fecha de elaboración", format="DD/MM/YYYY")
-    lote = st.text_input("Lote")
-
-# 3. Datos de Origen
-forma_pesca = st.radio("Método de producción/pesca", formas_metodo, horizontal=True)
-
-if "acui" in forma_pesca.lower():
-    zona = "N/A"
-    arte = "N/A"
-    st.info("Producto de ACUICULTURA: No requiere Zona FAO ni Arte de pesca.")
-else:
-    zona = st.selectbox("Zona de captura", zonas)
-    arte = st.selectbox("Arte de pesca", artes)
-
-pais = st.selectbox("País de origen", paises)
-
-# 4. Lógica de Caducidad
-usar_descongelacion = st.checkbox("¿Es un producto descongelado? (Suma 3 días a caducidad)")
-if usar_descongelacion:
-    fecha_cad = fecha_elab + timedelta(days=3)
-    st.info(f"Caducidad calculada: {fecha_cad.strftime('%d/%m/%Y')}")
-else:
-    fecha_cad = st.date_input("Fecha de caducidad", format="DD/MM/YYYY")
-
-# --- BOTÓN GENERAR ---
-if st.button("✅ Generar etiqueta"):
-
-    # Mapeo de datos para la plantilla Word
-    campos = {
-        "DENOMINACION_COMERCIAL": producto_sel.upper(),
-        "nombre_cientifico": nombre_cientifico,
-        "forma_transformacion": forma_trans,
-        "ingredientes": ingredientes,
-        "PUEDE_CONTENER": pueden_contener,
-        "pais_origen": pais,
-        "zona_captura": zona,
-        "arte_pesca": arte,
-        "forma_captura": forma_pesca,
-        "estados_productos": estado_prod,
-        "lote": lote,
-        "fecha_elaboracion": fecha_elab.strftime("%d/%m/%Y"),
-        "fecha_caducidad": fecha_cad.strftime("%d/%m/%Y")
-    }
-
-    # Selección de plantilla dinámica
-    nombre_plantilla = f"FT PRODUCTO {estado_prod}.docx"
+if hojas:
+    # 1. Elegimos qué pestaña usar para cada cosa
+    # Asegúrate de que los nombres de las pestañas en tu Excel coincidan aquí
+    df_productos = hojas.get("DATOS", list(hojas.values())[0]) # Coge la pestaña 'DATOS' o la primera que encuentre
     
-    if not os.path.exists(nombre_plantilla):
-        st.error(f"Error: No se encuentra el archivo de plantilla '{nombre_plantilla}'")
-    elif producto_sel == "Selecciona una opción" or not lote:
-        st.warning("Por favor, selecciona un producto e introduce un lote.")
-    else:
-        # Renderizar el documento
-        doc = DocxTemplate(nombre_plantilla)
-        doc.render(campos)
+    # Limpiar nombres de columnas
+    df_productos.columns = df_productos.columns.str.strip()
 
-        # Guardar y ofrecer descarga
-        timestamp = datetime.now().strftime('%H%M%S')
-        nombre_archivo = f"ETIQUETA_{estado_prod}_{timestamp}.docx"
-        doc.save(nombre_archivo)
+    # --- FORMULARIO ---
+    st.header("🧾 Generador de Etiquetas")
 
-        with open(nombre_archivo, "rb") as f:
-            base64_docx = base64.b64encode(f.read()).decode()
-            href = f'<a href="data:application/octet-stream;base64,{base64_docx}" download="{nombre_archivo}" style="text-decoration:none; border:2px solid #4CAF50; padding:10px; border-radius:5px; color:white; background-color:#4CAF50;">📥 Descargar Etiqueta {estado_prod}</a>'
-            st.markdown(href, unsafe_allow_html=True)
+    # Selector de producto (de la pestaña de productos)
+    lista_prod = ["Selecciona uno"] + sorted(df_productos["denominacion_comercial"].dropna().unique().tolist())
+    producto_sel = st.selectbox("Producto", lista_prod)
+
+    if producto_sel != "Selecciona uno":
+        fila = df_productos[df_productos["denominacion_comercial"] == producto_sel].iloc[0]
         
-        st.success(f"Etiqueta para producto {estado_prod} generada con éxito.")
+        # 2. Rellenamos datos automáticamente
+        nombre_cientifico = fila.get("nombre_cientifico", "")
+        ingredientes = fila.get("ingredientes", "")
+        alergenos = fila.get("alergenos", "")
+
+        st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
+        st.text_area("Ingredientes", value=ingredientes, disabled=True)
+        contener_input = st.text_input("Puede contener trazas de", value=alergenos)
+
+        # 3. Selectores de Estado y Transformación
+        col1, col2 = st.columns(2)
+        with col1:
+            estado_prod = st.selectbox("Estado del producto", ["CONGELADO", "FRESCO", "DESCONGELADO"])
+            forma_trans = st.text_input("Forma de transformación")
+        with col2:
+            fecha_elab = st.date_input("Fecha de elaboración", format="DD/MM/YYYY")
+            lote = st.text_input("Lote")
+
+        # 4. Origen (aquí podrías usar datos de OTRAS pestañas si quisieras)
+        # Por ahora lo dejamos manual o con listas simples
+        pais = st.text_input("País de origen", value=fila.get("pais_origen", ""))
+        zona = st.text_input("Zona de captura", value=fila.get("zona_captura", ""))
+        arte = st.text_input("Arte de pesca", value=fila.get("arte_pesca", ""))
+        metodo = st.selectbox("Método de producción", ["Extractiva", "Acuicultura"])
+
+        # Lógica de Caducidad
+        if estado_prod == "DESCONGELADO":
+            fecha_cad = fecha_elab + timedelta(days=3)
+        else:
+            fecha_cad = st.date_input("Fecha de caducidad", format="DD/MM/YYYY")
+
+        # --- BOTÓN GENERAR ---
+        if st.button("✅ GENERAR ETIQUETA"):
+            nombre_plantilla = f"FT PRODUCTO {estado_prod}.docx"
+            
+            if os.path.exists(nombre_plantilla):
+                doc = DocxTemplate(nombre_plantilla)
+                contexto = {
+                    "DENOMINACION_COMERCIAL": str(producto_sel).upper(),
+                    "nombre_cientifico": nombre_cientifico,
+                    "lforma_transformacion": forma_trans,
+                    "ingredientes": ingredientes,
+                    "PUEDE_CONTENER": contener_input,
+                    "pais_origen": pais,
+                    "zona_captura": zona,
+                    "arte_pesca": arte,
+                    "forma_captura": metodo,
+                    "estados_productos": estado_prod,
+                    "lote": lote,
+                    "fecha_elaboracion": fecha_elab.strftime("%d/%m/%Y"),
+                    "fecha_caducidad": fecha_cad.strftime("%d/%m/%Y")
+                }
+                doc.render(contexto)
+                out = f"ETIQUETA_{lote}.docx"
+                doc.save(out)
+                
+                with open(out, "rb") as f:
+                    st.download_button("📥 Descargar Word", f, file_name=out)
+            else:
+                st.error(f"Sube la plantilla {nombre_plantilla} a GitHub")
