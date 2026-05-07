@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 from docxtpl import DocxTemplate
+from docx import Document
+from docxcompose.composer import Composer
 import base64
 import os
 import locale
@@ -60,42 +62,39 @@ if producto != "Selecciona una opción":
     fila = df[df["DENOMINACION_COMERCIAL"] == producto].iloc[0]
     nombre_cientifico = fila.get("nombre_cientifico", "")
     ingredientes = fila.get("ingredientes", "")
-    plantilla_nombre = str(fila.get("plantilla", "plantilla_etiqueta")).strip()
+    plantilla_nombre = str(fila.get("plantilla", "")).strip()
 else:
     nombre_cientifico = ""
     ingredientes = ""
-    plantilla_nombre = "plantilla_etiqueta"
+    plantilla_nombre = ""
 
 st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
 st.text_area("Ingredientes", value=ingredientes, disabled=True)
 
 forma = st.radio("Forma de capturado / producción", formas, horizontal=True)
 
-# -------------------------------------------
-# 🚨 LÓGICA ACUICULTURA vs CAPTURADO
-# -------------------------------------------
-if "acui" in forma.lower():   # Es ACUICULTURA
-    zona = ""
-    arte = ""
+zona = ""
+arte = ""
+if "acui" in forma.lower():
     st.info("Producto de ACUICULTURA: no se aplica zona FAO ni arte de pesca.")
-else:  # Es CAPTURADO
+else:
     zona = st.selectbox("Zona de captura", zonas)
     arte = st.selectbox("Arte de pesca", artes)
 
 pais = st.selectbox("País de origen", paises)
 lote = st.text_input("Lote")
 
-# --- SECCIÓN DE CANTIDAD Y PESOS (OBLIGATORIOS) ---
+# --- SECCIÓN DE CANTIDAD Y PESOS ---
 st.subheader("Configuración de Impresión")
-cantidad_etiquetas = st.number_input("¿Cuántas etiquetas quieres sacar?", min_value=1, value=1, step=1)
+cantidad = st.number_input("¿Cuántas etiquetas quieres sacar?", min_value=1, max_value=50, value=1, step=1)
 
 pesos_netos = []
-col1, col2 = st.columns(2)
-for i in range(int(cantidad_etiquetas)):
-    target_col = col1 if i % 2 == 0 else col2
-    p_neto = target_col.text_input(f"Peso neto etiqueta {i+1} (Obligatorio)", key=f"peso_{i}")
-    pesos_netos.append(p_neto)
-# ---------------------------------------
+with st.container():
+    col1, col2 = st.columns(2)
+    for i in range(int(cantidad)):
+        t_col = col1 if i % 2 == 0 else col2
+        p_neto = t_col.text_input(f"Peso neto etiqueta {i+1}", key=f"p_{i}")
+        pesos_netos.append(p_neto)
 
 usar_fecha_descongelacion = st.checkbox("¿Indicar fecha de descongelación?")
 fecha_descongelacion = None
@@ -108,45 +107,34 @@ if usar_fecha_descongelacion:
 else:
     fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
 
-# -------------------------------------------
-# 🚨 BOTÓN GENERAR
-# -------------------------------------------
-if st.button("✅ Generar etiquetas"):
-
-    # 1. Validación de campos de formulario
-    campos_obligatorios = {
-        "Producto": producto,
-        "Forma de captura": forma,
-        "País de origen": pais,
-        "Lote": lote
-    }
-
-    if "acui" not in forma.lower():
-        campos_obligatorios["Zona de captura"] = zona
-        campos_obligatorios["Arte de pesca"] = arte
-
-    faltan = [k for k, v in campos_obligatorios.items() if not v or v == "Selecciona una opción"]
-
-    if faltan:
-        st.warning(f"Debes completar todos los campos obligatorios: {', '.join(faltan)}")
+# --- BOTÓN GENERAR ---
+if st.button("✅ Generar Archivo Único"):
+    if producto == "Selecciona una opción" or not lote:
+        st.error("Por favor, selecciona un producto e indica el lote.")
         st.stop()
-
-    # 2. Validación obligatoria de los Pesos Netos
-    # Verificamos si algún campo de peso está vacío o solo contiene espacios
+    
     if any(not p.strip() for p in pesos_netos):
-        st.warning("⚠️ Debes introducir el Peso Neto para todas las etiquetas antes de continuar.")
+        st.error("Debes rellenar el peso neto de todas las etiquetas.")
         st.stop()
 
-    # 3. Proceso de generación
-    plantilla_path = f"{plantilla_nombre}.docx"
+    posibles_nombres = [f"{plantilla_nombre}.docx", plantilla_nombre]
+    ruta_plantilla = None
+    for p in posibles_nombres:
+        if os.path.exists(p):
+            ruta_plantilla = p
+            break
 
-    if not os.path.exists(plantilla_path):
-        st.error(f"No se encontró la plantilla: {plantilla_path}")
-    else:
-        st.success(f"Generando {cantidad_etiquetas} etiqueta(s)...")
-        
+    if not ruta_plantilla:
+        st.error(f"No se encuentra la plantilla: {plantilla_nombre}")
+        st.stop()
+
+    try:
+        # Lista para guardar los archivos temporales
+        archivos_temporales = []
+
         for idx, peso in enumerate(pesos_netos):
-            campos = {
+            doc = DocxTemplate(ruta_plantilla)
+            contexto = {
                 "DENOMINACION_COMERCIAL": producto,
                 "nombre_cientifico": nombre_cientifico,
                 "ingredientes": ingredientes,
@@ -159,19 +147,32 @@ if st.button("✅ Generar etiquetas"):
                 "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
                 "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
             }
+            doc.render(contexto)
+            temp_name = f"temp_{idx}.docx"
+            doc.save(temp_name)
+            archivos_temporales.append(temp_name)
 
-            doc = DocxTemplate(plantilla_path)
-            doc.render(campos)
+        # Unir todos los archivos en uno solo
+        master = Document(archivos_temporales[0])
+        composer = Composer(master)
 
-            timestamp = datetime.now().strftime('%H%M%S')
-            output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{peso.replace(' ', '')}_{idx+1}.docx"
-            doc.save(output_docx)
+        for i in range(1, len(archivos_temporales)):
+            doc_temp = Document(archivos_temporales[i])
+            composer.append(doc_temp)
 
-            with open(output_docx, "rb") as file:
-                b64_docx = base64.b64encode(file.read()).decode()
-                st.markdown(
-                    f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta {idx+1} (Peso: {peso})</a>',
-                    unsafe_allow_html=True
-                )
+        # Nombre del archivo con el NÚMERO DE LOTE
+        nombre_final = f"ETIQUETAS_LOTE_{lote}.docx"
+        composer.save(nombre_final)
 
-        st.info("Si necesitas PDF, ábrelo en Word o Google Docs y guárdalo como PDF.")
+        # Ofrecer descarga
+        with open(nombre_final, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+            st.success(f"¡Hecho! Se han agrupado {len(pesos_netos)} etiquetas.")
+            st.markdown(f'📥 <a href="data:application/octet-stream;base64,{b64}" download="{nombre_final}">Descargar archivo único (Lote: {lote})</a>', unsafe_allow_html=True)
+
+        # Limpiar archivos temporales
+        for temp in archivos_temporales:
+            os.remove(temp)
+
+    except Exception as e:
+        st.error(f"Error al agrupar las etiquetas: {e}")
