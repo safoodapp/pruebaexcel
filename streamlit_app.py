@@ -45,7 +45,7 @@ def opciones_columna(col):
     except:
         return ["Selecciona una opción"]
 
-productos = opciones_columna("denominacion_comercial")
+productos = opciones_columna("DENOMINACION_COMERCIAL")
 formas = opciones_columna("forma_capturado")
 zonas = opciones_columna("zona_captura")
 paises = opciones_columna("pais_origen")
