@@ -74,28 +74,30 @@ forma = st.radio("Forma de capturado / producción", formas, horizontal=True)
 # -------------------------------------------
 # 🚨 LÓGICA ACUICULTURA vs CAPTURADO
 # -------------------------------------------
-if "acui" in forma.lower():   # Es ACUICULTURA
-    zona = ""
-    arte = ""
+zona = ""
+arte = ""
+if "acui" in forma.lower():
     st.info("Producto de ACUICULTURA: no se aplica zona FAO ni arte de pesca.")
-else:  # Es CAPTURADO
+else:
     zona = st.selectbox("Zona de captura", zonas)
     arte = st.selectbox("Arte de pesca", artes)
 
 pais = st.selectbox("País de origen", paises)
 lote = st.text_input("Lote")
 
-# --- SECCIÓN DE CANTIDAD Y PESOS (OBLIGATORIOS) ---
+# --- SECCIÓN DE CANTIDAD Y PESOS ---
 st.subheader("Configuración de Impresión")
-cantidad_etiquetas = st.number_input("¿Cuántas etiquetas quieres sacar?", min_value=1, value=1, step=1)
+cantidad = st.number_input("¿Cuántas etiquetas quieres sacar?", min_value=1, max_value=50, value=1, step=1)
 
 pesos_netos = []
-col1, col2 = st.columns(2)
-for i in range(int(cantidad_etiquetas)):
-    target_col = col1 if i % 2 == 0 else col2
-    p_neto = target_col.text_input(f"Peso neto etiqueta {i+1} (Obligatorio)", key=f"peso_{i}")
-    pesos_netos.append(p_neto)
-# ---------------------------------------
+# Usamos un contenedor para que los inputs no causen problemas de refresco
+with st.container():
+    col1, col2 = st.columns(2)
+    for i in range(int(cantidad)):
+        target_col = col1 if i % 2 == 0 else col2
+        # El 'key' debe ser único para cada input, esto es vital en Streamlit
+        p_neto = target_col.text_input(f"Peso neto etiqueta {i+1}", key=f"input_peso_{i}")
+        pesos_netos.append(p_neto)
 
 usar_fecha_descongelacion = st.checkbox("¿Indicar fecha de descongelación?")
 fecha_descongelacion = None
@@ -112,66 +114,58 @@ else:
 # 🚨 BOTÓN GENERAR
 # -------------------------------------------
 if st.button("✅ Generar etiquetas"):
-
-    # 1. Validación de campos de formulario
-    campos_obligatorios = {
-        "Producto": producto,
-        "Forma de captura": forma,
-        "País de origen": pais,
-        "Lote": lote
-    }
-
+    # Validación
+    faltan = []
+    if producto == "Selecciona una opción": faltan.append("Producto")
+    if not lote: faltan.append("Lote")
+    if pais == "Selecciona una opción": faltan.append("País de origen")
+    
     if "acui" not in forma.lower():
-        campos_obligatorios["Zona de captura"] = zona
-        campos_obligatorios["Arte de pesca"] = arte
-
-    faltan = [k for k, v in campos_obligatorios.items() if not v or v == "Selecciona una opción"]
+        if zona == "Selecciona una opción": faltan.append("Zona de captura")
+        if arte == "Selecciona una opción": faltan.append("Arte de pesca")
+    
+    # Validar pesos vacíos
+    if any(not p.strip() for p in pesos_netos):
+        st.error("⚠️ Debes rellenar todos los campos de Peso Neto.")
+        st.stop()
 
     if faltan:
-        st.warning(f"Debes completar todos los campos obligatorios: {', '.join(faltan)}")
+        st.warning(f"Campos obligatorios vacíos: {', '.join(faltan)}")
         st.stop()
 
-    # 2. Validación obligatoria de los Pesos Netos
-    # Verificamos si algún campo de peso está vacío o solo contiene espacios
-    if any(not p.strip() for p in pesos_netos):
-        st.warning("⚠️ Debes introducir el Peso Neto para todas las etiquetas antes de continuar.")
-        st.stop()
-
-    # 3. Proceso de generación
+    # Generación
     plantilla_path = f"{plantilla_nombre}.docx"
-
     if not os.path.exists(plantilla_path):
-        st.error(f"No se encontró la plantilla: {plantilla_path}")
+        st.error(f"Archivo de plantilla '{plantilla_path}' no encontrado.")
     else:
-        st.success(f"Generando {cantidad_etiquetas} etiqueta(s)...")
-        
         for idx, peso in enumerate(pesos_netos):
-            campos = {
-                "denominacion_comercial": producto,
-                "nombre_cientifico": nombre_cientifico,
-                "ingredientes": ingredientes,
-                "forma_captura": forma,
-                "zona_captura": zona,
-                "pais_origen": pais,
-                "arte_pesca": arte,
-                "lote": lote,
-                "peso_neto": peso,
-                "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
-                "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
-            }
+            try:
+                doc = DocxTemplate(plantilla_path)
+                contexto = {
+                    "denominacion_comercial": producto,
+                    "nombre_cientifico": nombre_cientifico,
+                    "ingredientes": ingredientes,
+                    "forma_captura": forma,
+                    "zona_captura": zona,
+                    "pais_origen": pais,
+                    "arte_pesca": arte,
+                    "lote": lote,
+                    "peso_neto": peso,
+                    "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
+                    "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
+                }
+                doc.render(contexto)
+                
+                nombre_limpio = producto.replace(" ", "_")
+                output_name = f"ETIQUETA_{nombre_limpio}_{idx+1}.docx"
+                doc.save(output_name)
 
-            doc = DocxTemplate(plantilla_path)
-            doc.render(campos)
-
-            timestamp = datetime.now().strftime('%H%M%S')
-            output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{peso.replace(' ', '')}_{idx+1}.docx"
-            doc.save(output_docx)
-
-            with open(output_docx, "rb") as file:
-                b64_docx = base64.b64encode(file.read()).decode()
-                st.markdown(
-                    f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta {idx+1} (Peso: {peso})</a>',
-                    unsafe_allow_html=True
+                with open(output_name, "rb") as f:
+                    data = f.read()
+                    b64 = base64.b64encode(data).decode()
+                    st.markdown(f'📥 **Etiqueta {idx+1} ({peso}):** <a href="data:application/octet-stream;base64,{b64}" download="{output_name}">Descargar Word</a>', unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error al generar la etiqueta {idx+1}: {e}")
                 )
 
         st.info("Si necesitas PDF, ábrelo en Word o Google Docs y guárdalo como PDF.")
