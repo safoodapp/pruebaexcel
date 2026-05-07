@@ -147,7 +147,7 @@ if st.button("✅ Generar etiquetas"):
         
         for idx, peso in enumerate(pesos_netos):
             campos = {
-                "denominacion_comercial": producto,
+                "DENOMINACION_COMERCIAL": producto,
                 "nombre_cientifico": nombre_cientifico,
                 "ingredientes": ingredientes,
                 "forma_captura": forma,
