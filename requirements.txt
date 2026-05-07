@@ -3,3 +3,4 @@ pandas
 openpyxl
 docxtpl
 st-gsheets-connection
+docxcompose
