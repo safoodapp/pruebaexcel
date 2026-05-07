@@ -57,7 +57,7 @@ st.header("🧾 Crear nueva etiqueta")
 producto = st.selectbox("Producto", productos)
 
 if producto != "Selecciona una opción":
-    fila = df[df["denominacion_comercial"] == producto].iloc[0]
+    fila = df[df["DENOMINACION_COMERCIAL"] == producto].iloc[0]
     nombre_cientifico = fila.get("nombre_cientifico", "")
     ingredientes = fila.get("ingredientes", "")
     plantilla_nombre = str(fila.get("plantilla", "plantilla_etiqueta")).strip()
