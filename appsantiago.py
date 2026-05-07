@@ -60,41 +60,31 @@ if producto != "Selecciona una opción":
     fila = df[df["denominacion_comercial"] == producto].iloc[0]
     nombre_cientifico = fila.get("nombre_cientifico", "")
     ingredientes = fila.get("ingredientes", "")
-    # Limpiamos el nombre de la plantilla por si acaso
-    plantilla_nombre = str(fila.get("plantilla", "")).strip()
+    plantilla_nombre = str(fila.get("plantilla", "plantilla_etiqueta")).strip()
 else:
     nombre_cientifico = ""
     ingredientes = ""
-    plantilla_nombre = ""
+    plantilla_nombre = "plantilla_etiqueta"
 
 st.text_input("Nombre científico", value=nombre_cientifico, disabled=True)
 st.text_area("Ingredientes", value=ingredientes, disabled=True)
 
 forma = st.radio("Forma de capturado / producción", formas, horizontal=True)
 
+# -------------------------------------------
 # 🚨 LÓGICA ACUICULTURA vs CAPTURADO
-zona = ""
-arte = ""
-if "acui" in forma.lower():
+# -------------------------------------------
+if "acui" in forma.lower():   # Es ACUICULTURA
+    zona = ""
+    arte = ""
     st.info("Producto de ACUICULTURA: no se aplica zona FAO ni arte de pesca.")
-else:
+else:  # Es CAPTURADO
     zona = st.selectbox("Zona de captura", zonas)
     arte = st.selectbox("Arte de pesca", artes)
 
 pais = st.selectbox("País de origen", paises)
+
 lote = st.text_input("Lote")
-
-# --- SECCIÓN DE CANTIDAD Y PESOS ---
-st.subheader("Configuración de Impresión")
-cantidad = st.number_input("¿Cuántas etiquetas quieres sacar?", min_value=1, max_value=50, value=1, step=1)
-
-pesos_netos = []
-with st.container():
-    col1, col2 = st.columns(2)
-    for i in range(int(cantidad)):
-        t_col = col1 if i % 2 == 0 else col2
-        p_neto = t_col.text_input(f"Peso neto etiqueta {i+1}", key=f"p_{i}")
-        pesos_netos.append(p_neto)
 
 usar_fecha_descongelacion = st.checkbox("¿Indicar fecha de descongelación?")
 fecha_descongelacion = None
@@ -107,57 +97,61 @@ if usar_fecha_descongelacion:
 else:
     fecha_caducidad = st.date_input("Fecha de caducidad (manual)", format="DD/MM/YYYY")
 
-# --- BOTÓN GENERAR ---
-if st.button("✅ Generar etiquetas"):
-    # Validaciones básicas
-    if producto == "Selecciona una opción" or not lote:
-        st.error("Por favor, selecciona un producto e indica el lote.")
+# -------------------------------------------
+# 🚨 BOTÓN GENERAR
+# -------------------------------------------
+if st.button("✅ Generar etiqueta"):
+
+    campos = {
+        "denominacion_comercial": producto,
+        "nombre_cientifico": nombre_cientifico,
+        "ingredientes": ingredientes,
+        "forma_captura": forma,
+        "zona_captura": zona,
+        "pais_origen": pais,
+        "arte_pesca": arte,
+        "lote": lote,
+        "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
+        "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
+    }
+
+    # Validación de campos obligatorios
+    campos_obligatorios = {
+        "Producto": producto,
+        "Forma de captura": forma,
+        "País de origen": pais,
+        "Lote": lote
+    }
+
+    # ✨ Solo exigir zona FAO y arte si NO es acuicultura
+    if "acui" not in forma.lower():
+        campos_obligatorios["Zona de captura"] = zona
+        campos_obligatorios["Arte de pesca"] = arte
+
+    faltan = [k for k, v in campos_obligatorios.items() if not v or v == "Selecciona una opción"]
+
+    if faltan:
+        st.warning(f"Debes completar todos los campos obligatorios: {', '.join(faltan)}")
         st.stop()
-    
-    if any(not p.strip() for p in pesos_netos):
-        st.error("Debes rellenar el peso neto de todas las etiquetas.")
-        st.stop()
 
-    # Intentar encontrar la plantilla
-    # Probamos con .docx y sin .docx por si acaso
-    posibles_nombres = [f"{plantilla_nombre}.docx", plantilla_nombre]
-    ruta_final = None
-    for p in posibles_nombres:
-        if os.path.exists(p):
-            ruta_final = p
-            break
+    # Generar documento
+    plantilla_path = f"{plantilla_nombre}.docx"
 
-    if not ruta_final:
-        st.error(f"⚠️ Error: No se encuentra el archivo de la plantilla '{plantilla_nombre}'. Revisa que el nombre en el Excel coincida con los archivos de GitHub.")
-        st.stop()
+    if not os.path.exists(plantilla_path):
+        st.error(f"No se encontró la plantilla: {plantilla_path}")
+    else:
+        doc = DocxTemplate(plantilla_path)
+        doc.render(campos)
 
-    # Generación
-    for idx, peso in enumerate(pesos_netos):
-        try:
-            doc = DocxTemplate(ruta_final)
-            contexto = {
-                "denominacion_comercial": producto,
-                "nombre_cientifico": nombre_cientifico,
-                "ingredientes": ingredientes,
-                "forma_captura": forma,
-                "zona_captura": zona,
-                "pais_origen": pais,
-                "arte_pesca": arte,
-                "lote": lote,
-                "peso_neto": peso,
-                "fecha_descongelacion": fecha_descongelacion.strftime("%d/%m/%Y") if fecha_descongelacion else "",
-                "fecha_caducidad": fecha_caducidad.strftime("%d/%m/%Y") if fecha_caducidad else ""
-            }
-            doc.render(contexto)
-            
-            output_name = f"ETIQUETA_{idx+1}.docx"
-            doc.save(output_name)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        output_docx = f"ETIQUETA_{producto.replace(' ', '_')}_{timestamp}.docx"
+        doc.save(output_docx)
 
-            with open(output_name, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-                st.markdown(f'📥 **Etiqueta {idx+1} ({peso}):** <a href="data:application/octet-stream;base64,{b64}" download="Etiqueta_{idx+1}.docx">Descargar</a>', unsafe_allow_html=True)
-        except Exception as e:
-            st.error(f"Error al crear etiqueta {idx+1}: {e}")
-                )
+        with open(output_docx, "rb") as file:
+            b64_docx = base64.b64encode(file.read()).decode()
+            st.markdown(
+                f'<a href="data:application/octet-stream;base64,{b64_docx}" download="{output_docx}">📥 Descargar etiqueta Word</a>',
+                unsafe_allow_html=True
+            )
 
         st.info("Si necesitas PDF, ábrelo en Word o Google Docs y guárdalo como PDF.")
